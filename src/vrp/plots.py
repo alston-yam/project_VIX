@@ -60,8 +60,8 @@ def apply_style() -> None:
 
 
 def footnote(fig: plt.Figure, text: str) -> None:
-    """Add the data-source footnote at the bottom-left of the figure."""
-    fig.text(0.01, 0.01, text, ha="left", va="bottom", fontsize=8, color=COLORS["ink2"])
+    """Add the data-source footnote just below the bottom-left of the figure."""
+    fig.text(0.01, -0.01, text, ha="left", va="top", fontsize=8, color=COLORS["ink2"])
 
 
 def save(fig: plt.Figure, name: str, cfg: Config) -> list[Path]:

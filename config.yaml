@@ -1,0 +1,85 @@
+# ---------------------------------------------------------------------------
+# VRP S&P 500 project: every parameter used by the pipeline lives here.
+# Paths are relative to the repository root.
+# ---------------------------------------------------------------------------
+
+project:
+  name: "S&P 500 Variance Risk Premium: Is the VIX Too Pessimistic?"
+  version: "v1-data-layer"
+
+dates:
+  # Download window. Starts early so the first in-sample return exists, ends
+  # after 2025 so the December 2025 forward window can complete.
+  download_start: "1989-11-01"
+  download_end: "2026-03-31"        # inclusive
+  # Monthly sample window (months, inclusive).
+  sample_start_month: "1990-01"
+  sample_end_month: "2025-12"
+  # Benchmark comparison window used in the sanity summary.
+  benchmark_start: "1990-01-01"
+  benchmark_end: "2024-12-31"
+  # Date the current (SPX-options, model-free) VIX methodology went live.
+  vix_new_methodology_date: "2003-09-22"
+
+features:
+  window: 21                 # trading days in the realised-variance window
+  annualisation: 252         # trading days per year
+  selloff_threshold_log: -0.05   # spx_fwd21_ret_log below this => is_selloff
+  n_deciles: 10
+
+sources:
+  vix:
+    provider: "Cboe via FRED"
+    series_id: "VIXCLS"
+    url: "https://fred.stlouisfed.org/graph/fredgraph.csv?id=VIXCLS"
+    required: true
+  vxo:
+    provider: "Cboe via FRED"
+    series_id: "VXOCLS"
+    url: "https://fred.stlouisfed.org/graph/fredgraph.csv?id=VXOCLS"
+    required: false
+  usrec:
+    provider: "NBER via FRED"
+    series_id: "USREC"
+    url: "https://fred.stlouisfed.org/graph/fredgraph.csv?id=USREC"
+    required: false
+  spx:
+    provider: "Yahoo Finance via yfinance"
+    ticker: "^GSPC"
+    auto_adjust: true
+    fallback_provider: "Stooq via pandas_datareader"
+    fallback_ticker: "^SPX"
+    required: true
+
+download:
+  max_tries: 3
+  backoff_base_seconds: 5     # waits 5s, then 10s between tries
+  http_timeout_seconds: 60
+
+checks:
+  vix_min: 5.0
+  vix_max: 100.0
+  extreme_abs_log_return: 0.10
+  max_calendar_gap_days: 4
+  expected_max_vix_close: 82.69
+  expected_max_vix_date: "2020-03-16"
+  expected_monthly_rows: 432
+  benchmark_mean_vix: 19.6
+  benchmark_mean_rv: 15.5
+  benchmark_tolerance_vol_pts: 1.0   # |ours - benchmark| <= this => ✅
+
+paths:
+  raw: "data/raw"
+  interim: "data/interim"
+  processed: "data/processed"
+  figures: "outputs/figures"
+  reports: "outputs/reports"
+  logs: "logs"
+  events_docs: "docs/events.md"
+
+plots:
+  dpi: 150
+  formats: ["png", "svg"]
+  source_note: "Data: Cboe via FRED (VIXCLS); S&P 500 via Yahoo Finance"
+  shade_events: ["gfc_2008", "covid_2020"]
+  n_label_worst: 5

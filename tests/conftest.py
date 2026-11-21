@@ -22,8 +22,12 @@ def cfg() -> Config:
     return load_config()
 
 
-def make_inputs(log_returns: np.ndarray, vix: float | np.ndarray = 20.0,
-                start: str = "2000-01-03", p0: float = 100.0) -> tuple[pd.Series, pd.DataFrame]:
+def make_inputs(
+    log_returns: np.ndarray,
+    vix: float | np.ndarray = 20.0,
+    start: str = "2000-01-03",
+    p0: float = 100.0,
+) -> tuple[pd.Series, pd.DataFrame]:
     """Build (vix series, spx OHLCV frame) on business days from given daily log returns.
 
     The first S&P date precedes the first VIX date so the first panel return exists.
@@ -31,8 +35,9 @@ def make_inputs(log_returns: np.ndarray, vix: float | np.ndarray = 20.0,
     n = len(log_returns) + 1
     dates = pd.bdate_range(start, periods=n)
     close = p0 * np.exp(np.r_[0.0, np.cumsum(log_returns)])
-    spx = pd.DataFrame({"open": close, "high": close, "low": close, "close": close,
-                        "volume": 1.0}, index=dates)
+    spx = pd.DataFrame(
+        {"open": close, "high": close, "low": close, "close": close, "volume": 1.0}, index=dates
+    )
     v = np.broadcast_to(np.asarray(vix, dtype=float), (n - 1,))
     vix_s = pd.Series(v, index=dates[1:], name="vix_close")
     return vix_s, spx

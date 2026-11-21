@@ -28,8 +28,9 @@ def to_date_index(idx: pd.Index) -> pd.DatetimeIndex:
     return dt.normalize().astype("datetime64[ns]")
 
 
-def standardise_index(obj: pd.Series | pd.DataFrame, name: str,
-                      q: QualityLog) -> pd.Series | pd.DataFrame:
+def standardise_index(
+    obj: pd.Series | pd.DataFrame, name: str, q: QualityLog
+) -> pd.Series | pd.DataFrame:
     """Normalise dates, sort, and drop duplicate dates (keeping the first), logging any."""
     out = obj.copy()
     out.index = to_date_index(out.index)
@@ -46,17 +47,29 @@ def standardise_index(obj: pd.Series | pd.DataFrame, name: str,
     return out[~dup]
 
 
-def restrict_dates(obj: pd.Series | pd.DataFrame, name: str, cfg: Config,
-                   q: QualityLog) -> pd.Series | pd.DataFrame:
+def restrict_dates(
+    obj: pd.Series | pd.DataFrame, name: str, cfg: Config, q: QualityLog
+) -> pd.Series | pd.DataFrame:
     """Keep rows inside the configured download window (inclusive)."""
     start = pd.Timestamp(cfg["dates"]["download_start"])
     end = pd.Timestamp(cfg["dates"]["download_end"])
     mask = (obj.index >= start) & (obj.index <= end)
     n_before, n_out = int((obj.index < start).sum()), int((obj.index > end).sum())
-    log.info("%s: keeping %d of %d rows inside %s..%s (%d before, %d after window)",
-             name, int(mask.sum()), len(obj), start.date(), end.date(), n_before, n_out)
-    q.note(f"{name}: date window", f"kept {int(mask.sum())} of {len(obj)} rows inside "
-           f"{start.date()}..{end.date()} ({n_before} earlier, {n_out} later rows removed)")
+    log.info(
+        "%s: keeping %d of %d rows inside %s..%s (%d before, %d after window)",
+        name,
+        int(mask.sum()),
+        len(obj),
+        start.date(),
+        end.date(),
+        n_before,
+        n_out,
+    )
+    q.note(
+        f"{name}: date window",
+        f"kept {int(mask.sum())} of {len(obj)} rows inside "
+        f"{start.date()}..{end.date()} ({n_before} earlier, {n_out} later rows removed)",
+    )
     return obj[mask]
 
 
@@ -67,12 +80,16 @@ def drop_missing(s: pd.Series, name: str, q: QualityLog) -> pd.Series:
     if n:
         dates = [str(d.date()) for d in s.index[miss]]
         log.info("%s: dropping %d missing values (FRED '.'/blank or NaN)", name, n)
-        q.note(f"{name}: missing values", f"dropped {n} dates with no value. FRED lists every "
-               "weekday, so most of these are US market holidays; the ones that matter (S&P "
-               "traded but this series has no value) are listed under 'Merge'")
-        q.table(f"{name}: missing values::Dropped dates ({name})",
-                pd.DataFrame({"date": dates, "weekday": [pd.Timestamp(d).day_name()
-                                                          for d in dates]}))
+        q.note(
+            f"{name}: missing values",
+            f"dropped {n} dates with no value. FRED lists every "
+            "weekday, so most of these are US market holidays; the ones that matter (S&P "
+            "traded but this series has no value) are listed under 'Merge'",
+        )
+        q.table(
+            f"{name}: missing values::Dropped dates ({name})",
+            pd.DataFrame({"date": dates, "weekday": [pd.Timestamp(d).day_name() for d in dates]}),
+        )
     else:
         q.note(f"{name}: missing values", "no missing values")
     return s[~miss]
@@ -82,9 +99,13 @@ def drop_non_positive(s: pd.Series, name: str, q: QualityLog) -> pd.Series:
     """Drop values <= 0 (cannot take logs). Expected count is zero."""
     bad = s <= 0
     n = int(bad.sum())
-    q.check(f"{name}_positive", n == 0, f"{name}: {n} non-positive values"
-            + ("" if n == 0 else " (dropped: " + ", ".join(str(d.date()) for d in s.index[bad])
-               + ")"), severity="warn")
+    q.check(
+        f"{name}_positive",
+        n == 0,
+        f"{name}: {n} non-positive values"
+        + ("" if n == 0 else " (dropped: " + ", ".join(str(d.date()) for d in s.index[bad]) + ")"),
+        severity="warn",
+    )
     return s[~bad]
 
 
@@ -95,8 +116,9 @@ def find_gaps(index: pd.DatetimeIndex, max_days: int) -> pd.DataFrame:
     prev, nxt = index[:-1], index[1:]
     gap = (nxt - prev).days
     m = gap > max_days
-    return pd.DataFrame({"prev_date": prev[m], "next_date": nxt[m],
-                         "calendar_days": np.asarray(gap)[m]})
+    return pd.DataFrame(
+        {"prev_date": prev[m], "next_date": nxt[m], "calendar_days": np.asarray(gap)[m]}
+    )
 
 
 def record_gaps(index: pd.DatetimeIndex, name: str, cfg: Config, q: QualityLog) -> pd.DataFrame:
@@ -104,8 +126,10 @@ def record_gaps(index: pd.DatetimeIndex, name: str, cfg: Config, q: QualityLog) 
     max_days = int(cfg["checks"]["max_calendar_gap_days"])
     gaps = find_gaps(index, max_days)
     log.info("%s: %d gaps of more than %d calendar days", name, len(gaps), max_days)
-    q.note(f"{name}: calendar gaps", f"{len(gaps)} gaps of more than {max_days} calendar days "
-           "between consecutive dates")
+    q.note(
+        f"{name}: calendar gaps",
+        f"{len(gaps)} gaps of more than {max_days} calendar days " "between consecutive dates",
+    )
     q.table(f"{name}: calendar gaps::Gaps > {max_days} days ({name})", gaps)
     return gaps
 
@@ -129,8 +153,9 @@ def read_spx_raw(path: str | Path) -> pd.DataFrame:
 
 
 # --------------------------------------------------------------------------- cleaners
-def clean_vix_like(raw: pd.Series, name: str, cfg: Config, q: QualityLog,
-                   check_range: bool = True) -> pd.Series:
+def clean_vix_like(
+    raw: pd.Series, name: str, cfg: Config, q: QualityLog, check_range: bool = True
+) -> pd.Series:
     """Clean a FRED daily vol index (VIX or VXO)."""
     n0 = len(raw)
     s = standardise_index(raw, name, q)
@@ -140,10 +165,13 @@ def clean_vix_like(raw: pd.Series, name: str, cfg: Config, q: QualityLog,
     if check_range:
         lo, hi = cfg["checks"]["vix_min"], cfg["checks"]["vix_max"]
         out = s[(s < lo) | (s > hi)]
-        q.check(f"{name}_range", out.empty,
-                f"{name}: {len(out)} closes outside [{lo}, {hi}] (flagged, not removed)"
-                + ("" if out.empty else ": " + ", ".join(f"{d.date()}={v}" for d, v in out.items())),
-                severity="warn")
+        q.check(
+            f"{name}_range",
+            out.empty,
+            f"{name}: {len(out)} closes outside [{lo}, {hi}] (flagged, not removed)"
+            + ("" if out.empty else ": " + ", ".join(f"{d.date()}={v}" for d, v in out.items())),
+            severity="warn",
+        )
     record_gaps(s.index, name, cfg, q)
     q.counts[f"{name}: raw rows"] = n0
     q.counts[f"{name}: clean rows"] = len(s)
@@ -158,8 +186,12 @@ def clean_usrec(raw: pd.Series, cfg: Config, q: QualityLog) -> pd.Series:
     s = restrict_dates(s, "usrec", cfg, q)
     s = drop_missing(s, "usrec", q)
     bad = ~s.isin([0, 1])
-    q.check("usrec_binary", not bad.any(), f"usrec: {int(bad.sum())} values not in {{0, 1}}",
-            severity="warn")
+    q.check(
+        "usrec_binary",
+        not bad.any(),
+        f"usrec: {int(bad.sum())} values not in {{0, 1}}",
+        severity="warn",
+    )
     s = s[~bad].astype(int)
     q.counts["usrec: raw rows"], q.counts["usrec: clean rows"] = n0, len(s)
     return s
@@ -177,19 +209,27 @@ def clean_spx(raw: pd.DataFrame, cfg: Config, q: QualityLog) -> pd.DataFrame:
     df = df.loc[close.index]
     # OHLC consistency (flag only).
     inconsistent = df[(df["low"] > df["close"] + 1e-9) | (df["high"] < df["close"] - 1e-9)]
-    q.note(f"{name}: OHLC consistency",
-           f"{len(inconsistent)} rows where close lies outside [low, high] (flagged, not removed)")
+    q.note(
+        f"{name}: OHLC consistency",
+        f"{len(inconsistent)} rows where close lies outside [low, high] (flagged, not removed)",
+    )
     zero_vol = int((df["volume"].fillna(0) <= 0).sum())
-    q.note(f"{name}: OHLC consistency", f"{zero_vol} rows with zero or missing volume "
-           "(volume is not used in the analysis)")
+    q.note(
+        f"{name}: OHLC consistency",
+        f"{zero_vol} rows with zero or missing volume " "(volume is not used in the analysis)",
+    )
     # Extreme daily moves on the S&P's own calendar (flag, never remove).
     thr = float(cfg["checks"]["extreme_abs_log_return"])
     r = np.log(df["close"]).diff()
     ext = r[r.abs() > thr]
-    tbl = pd.DataFrame({"date": ext.index, "log_return": ext.values,
-                        "simple_return": np.expm1(ext.values)})
-    q.note(f"{name}: extreme returns", f"{len(ext)} days with |log return| > {thr:.0%} "
-           "(kept: real crash days are the point of the study)")
+    tbl = pd.DataFrame(
+        {"date": ext.index, "log_return": ext.values, "simple_return": np.expm1(ext.values)}
+    )
+    q.note(
+        f"{name}: extreme returns",
+        f"{len(ext)} days with |log return| > {thr:.0%} "
+        "(kept: real crash days are the point of the study)",
+    )
     q.table(f"{name}: extreme returns::Flagged extreme days", tbl)
     for d, v in ext.items():
         log.warning("spx: extreme daily log return %.4f on %s (flagged, kept)", v, d.date())
@@ -200,8 +240,9 @@ def clean_spx(raw: pd.DataFrame, cfg: Config, q: QualityLog) -> pd.DataFrame:
 
 
 # --------------------------------------------------------------------------- merge
-def merge_vix_spx(vix: pd.Series, spx: pd.DataFrame, q: QualityLog,
-                  vxo: pd.Series | None = None) -> pd.DataFrame:
+def merge_vix_spx(
+    vix: pd.Series, spx: pd.DataFrame, q: QualityLog, vxo: pd.Series | None = None
+) -> pd.DataFrame:
     """Inner-join VIX and S&P closes on dates where both exist.
 
     Also adds:
@@ -220,21 +261,42 @@ def merge_vix_spx(vix: pd.Series, spx: pd.DataFrame, q: QualityLog,
     only_spx_in = only_spx[only_spx >= first_vix]
     pre_sample = only_spx[only_spx < first_vix]
     log.info("merge: VIX %d dates, S&P %d dates", len(vix), len(close))
-    log.info("merge: %d S&P dates before first VIX date %s (used only for the first return)",
-             len(pre_sample), first_vix.date())
+    log.info(
+        "merge: %d S&P dates before first VIX date %s (used only for the first return)",
+        len(pre_sample),
+        first_vix.date(),
+    )
     log.info("merge: %d S&P dates with no VIX value (dropped)", len(only_spx_in))
     log.info("merge: %d VIX dates with no S&P close (dropped)", len(only_vix))
     q.note("Merge (inner join)", f"VIX has {len(vix)} dates; S&P has {len(close)} dates")
-    q.note("Merge (inner join)", f"{len(pre_sample)} S&P dates fall before the first VIX date "
-           f"({first_vix.date()}); they only seed the first return")
-    q.note("Merge (inner join)", f"{len(only_spx_in)} S&P trading dates have no VIX value and are "
-           "dropped from the panel")
-    q.note("Merge (inner join)", f"{len(only_vix)} VIX dates have no S&P close (exchange holidays "
-           "or closures on which Cboe still published a value) and are dropped")
-    q.table("Merge (inner join)::S&P dates with no VIX", pd.DataFrame(
-        {"date": only_spx_in, "weekday": only_spx_in.day_name()}))
-    q.table("Merge (inner join)::VIX dates with no S&P close", pd.DataFrame(
-        {"date": only_vix, "weekday": only_vix.day_name(), "vix_close": vix.loc[only_vix].values}))
+    q.note(
+        "Merge (inner join)",
+        f"{len(pre_sample)} S&P dates fall before the first VIX date "
+        f"({first_vix.date()}); they only seed the first return",
+    )
+    q.note(
+        "Merge (inner join)",
+        f"{len(only_spx_in)} S&P trading dates have no VIX value and are " "dropped from the panel",
+    )
+    q.note(
+        "Merge (inner join)",
+        f"{len(only_vix)} VIX dates have no S&P close (exchange holidays "
+        "or closures on which Cboe still published a value) and are dropped",
+    )
+    q.table(
+        "Merge (inner join)::S&P dates with no VIX",
+        pd.DataFrame({"date": only_spx_in, "weekday": only_spx_in.day_name()}),
+    )
+    q.table(
+        "Merge (inner join)::VIX dates with no S&P close",
+        pd.DataFrame(
+            {
+                "date": only_vix,
+                "weekday": only_vix.day_name(),
+                "vix_close": vix.loc[only_vix].values,
+            }
+        ),
+    )
 
     both = close.index.intersection(vix.index)
     panel = pd.DataFrame({"spx_close": close.loc[both], "vix_close": vix.loc[both]})
@@ -251,14 +313,23 @@ def merge_vix_spx(vix: pd.Series, spx: pd.DataFrame, q: QualityLog,
     pos = close.index.get_indexer(both)
     spans = np.r_[False, np.diff(pos) > 1]
     panel["ret_spans_dropped_day"] = spans
-    q.note("Merge (inner join)", f"{int(spans.sum())} panel returns span a dropped S&P day "
-           "(the return then covers two trading days of price change; listed below)")
-    q.table("Merge (inner join)::Returns spanning a dropped S&P day",
-            pd.DataFrame({"date": panel.index[spans]}))
+    q.note(
+        "Merge (inner join)",
+        f"{int(spans.sum())} panel returns span a dropped S&P day "
+        "(the return then covers two trading days of price change; listed below)",
+    )
+    q.table(
+        "Merge (inner join)::Returns spanning a dropped S&P day",
+        pd.DataFrame({"date": panel.index[spans]}),
+    )
 
     if vxo is not None:
         panel["vxo_close"] = vxo.reindex(panel.index)
     q.counts["merged panel rows"] = len(panel)
-    log.info("merge: panel has %d rows (%s..%s)", len(panel), panel.index.min().date(),
-             panel.index.max().date())
+    log.info(
+        "merge: panel has %d rows (%s..%s)",
+        len(panel),
+        panel.index.min().date(),
+        panel.index.max().date(),
+    )
     return panel

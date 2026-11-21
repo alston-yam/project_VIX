@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-
 from conftest import ANN, WINDOW, build_panel, cfg_with, make_inputs
+
 from vrp import features, sampling
 
 
@@ -56,27 +56,32 @@ def test_primer_crash_example() -> None:
 
 def test_scaled_payoff_identity(random_panel: pd.DataFrame) -> None:
     c = _complete(random_panel)
-    np.testing.assert_allclose(c["payoff_scaled"],
-                               1 - c["rv_fwd21_ann_var"] / c["iv_ann_var"], rtol=1e-12)
+    np.testing.assert_allclose(
+        c["payoff_scaled"], 1 - c["rv_fwd21_ann_var"] / c["iv_ann_var"], rtol=1e-12
+    )
     assert (c["payoff_scaled"] <= 1).all()
 
 
 def test_implied_variance_units() -> None:
     s = pd.Series([10.0, 20.0, 82.69])
-    np.testing.assert_allclose(features.implied_variance(s), [0.01, 0.04, 0.8269 ** 2])
+    np.testing.assert_allclose(features.implied_variance(s), [0.01, 0.04, 0.8269**2])
 
 
 def test_fwd_log_return_sums_window_returns(random_panel: pd.DataFrame) -> None:
     r = random_panel["ret_log"].to_numpy()
     for i in [0, 50, 200]:
         assert random_panel["spx_fwd21_ret_log"].iloc[i] == pytest.approx(
-            r[i + 1:i + 1 + WINDOW].sum(), abs=1e-12)
+            r[i + 1 : i + 1 + WINDOW].sum(), abs=1e-12
+        )
 
 
 def test_monthly_flags(random_panel: pd.DataFrame, cfg) -> None:
-    c = cfg_with(cfg, sample_start_month=random_panel.index[0].strftime("%Y-%m"),
-                 sample_end_month=random_panel.index[-1].strftime("%Y-%m"),
-                 vix_new_methodology_date="2000-06-01")
+    c = cfg_with(
+        cfg,
+        sample_start_month=random_panel.index[0].strftime("%Y-%m"),
+        sample_end_month=random_panel.index[-1].strftime("%Y-%m"),
+        vix_new_methodology_date="2000-06-01",
+    )
     m = sampling.build_monthly_sample(random_panel, c)
     assert (m["is_selloff"] == (m["spx_fwd21_ret_log"] < -0.05)).all()
     assert m["selloff_decile"].between(1, 10).all()

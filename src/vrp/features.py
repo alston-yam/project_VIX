@@ -15,11 +15,22 @@ from vrp.logging_setup import get_logger
 log = get_logger(__name__)
 
 PANEL_COLUMNS: list[str] = [
-    "spx_close", "vix_close", "vxo_close", "ret_log", "ret_spans_dropped_day",
-    "iv_ann_var", "rv_past21_ann_var",
-    "rv_fwd21_ann_var", "rv_fwd21_ann_vol_pct", "payoff_var", "payoff_scaled",
-    "vol_spread_pts", "spx_fwd21_ret_log",
-    "fwd_window_start", "fwd_window_end", "fwd_window_complete",
+    "spx_close",
+    "vix_close",
+    "vxo_close",
+    "ret_log",
+    "ret_spans_dropped_day",
+    "iv_ann_var",
+    "rv_past21_ann_var",
+    "rv_fwd21_ann_var",
+    "rv_fwd21_ann_vol_pct",
+    "payoff_var",
+    "payoff_scaled",
+    "vol_spread_pts",
+    "spx_fwd21_ret_log",
+    "fwd_window_start",
+    "fwd_window_end",
+    "fwd_window_complete",
 ]
 
 
@@ -73,7 +84,10 @@ def add_features(panel: pd.DataFrame, window: int, ann: int) -> pd.DataFrame:
     if "vxo_close" not in df:
         df["vxo_close"] = np.nan
     out = df[PANEL_COLUMNS]
-    log.info("features: %d rows, %d with complete forward window, %d with trailing window",
-             len(out), int(out["fwd_window_complete"].sum()),
-             int(out["rv_past21_ann_var"].notna().sum()))
+    log.info(
+        "features: %d rows, %d with complete forward window, %d with trailing window",
+        len(out),
+        int(out["fwd_window_complete"].sum()),
+        int(out["rv_past21_ann_var"].notna().sum()),
+    )
     return out

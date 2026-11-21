@@ -23,23 +23,32 @@ def build_monthly_sample(panel: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     first = first_trading_days(panel)
     months = first.index.to_period("M")
     in_range = (months >= pd.Period(d["sample_start_month"], "M")) & (
-        months <= pd.Period(d["sample_end_month"], "M"))
+        months <= pd.Period(d["sample_end_month"], "M")
+    )
     m = first[in_range]
     n_in = len(m)
     dropped = m.index[~m["fwd_window_complete"]]
     m = m[m["fwd_window_complete"]].copy()
-    log.info("sampling: %d first-trading-days in %s..%s; %d dropped (incomplete window); "
-             "%d monthly rows", n_in, d["sample_start_month"], d["sample_end_month"],
-             len(dropped), len(m))
+    log.info(
+        "sampling: %d first-trading-days in %s..%s; %d dropped (incomplete window); "
+        "%d monthly rows",
+        n_in,
+        d["sample_start_month"],
+        d["sample_end_month"],
+        len(dropped),
+        len(m),
+    )
     if len(dropped):
-        log.warning("sampling: incomplete forward windows on %s",
-                    ", ".join(str(x.date()) for x in dropped))
+        log.warning(
+            "sampling: incomplete forward windows on %s", ", ".join(str(x.date()) for x in dropped)
+        )
 
     m.insert(0, "month", m.index.strftime("%Y-%m"))
     m["is_selloff"] = m["spx_fwd21_ret_log"] < float(f["selloff_threshold_log"])
     n_dec = int(f["n_deciles"])
-    m["selloff_decile"] = (pd.qcut(m["spx_fwd21_ret_log"].rank(method="first"), n_dec,
-                                   labels=False) + 1).astype(int)
+    m["selloff_decile"] = (
+        pd.qcut(m["spx_fwd21_ret_log"].rank(method="first"), n_dec, labels=False) + 1
+    ).astype(int)
     m["post_2003"] = m.index >= pd.Timestamp(d["vix_new_methodology_date"])
     return m
 
@@ -55,9 +64,13 @@ def window_overlap(monthly: pd.DataFrame, panel: pd.DataFrame) -> pd.DataFrame:
     end_pos = pos.loc[monthly["fwd_window_end"]].to_numpy()
     start_pos = pos.loc[monthly["fwd_window_start"]].to_numpy()
     overlap = end_pos[:-1] - start_pos[1:] + 1
-    return pd.DataFrame({"month": monthly["month"].iloc[:-1].to_numpy(),
-                         "next_month": monthly["month"].iloc[1:].to_numpy(),
-                         "overlap_days": overlap})
+    return pd.DataFrame(
+        {
+            "month": monthly["month"].iloc[:-1].to_numpy(),
+            "next_month": monthly["month"].iloc[1:].to_numpy(),
+            "overlap_days": overlap,
+        }
+    )
 
 
 def overlap_summary(ov: pd.DataFrame) -> dict[str, float | int]:

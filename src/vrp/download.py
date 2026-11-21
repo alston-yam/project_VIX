@@ -59,8 +59,14 @@ def with_retry(fn: Callable[[], T], what: str, max_tries: int, backoff: float) -
             return fn()
         except Exception as exc:  # noqa: BLE001 - we re-raise after the last try
             last = exc
-            log.warning("%s: attempt %d/%d failed: %s: %s", what, attempt, max_tries,
-                        type(exc).__name__, exc)
+            log.warning(
+                "%s: attempt %d/%d failed: %s: %s",
+                what,
+                attempt,
+                max_tries,
+                type(exc).__name__,
+                exc,
+            )
             if attempt < max_tries:
                 wait = backoff * (2 ** (attempt - 1))
                 log.info("%s: waiting %.0fs before retry", what, wait)
@@ -94,8 +100,14 @@ def write_meta(raw_path: Path, info: dict[str, Any]) -> Path:
     }
     meta_path = raw_path.with_suffix(".meta.json")
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    log.info("wrote %s (rows=%d, %s..%s, sha256=%s…)", meta_path.name, n, first, last,
-             meta["sha256"][:12])
+    log.info(
+        "wrote %s (rows=%d, %s..%s, sha256=%s…)",
+        meta_path.name,
+        n,
+        first,
+        last,
+        meta["sha256"][:12],
+    )
     return meta_path
 
 
@@ -116,18 +128,22 @@ def fetch_fred(name: str, cfg: Config, refresh: bool = False) -> Path:
             raise ValueError("empty response")
         return resp.content
 
-    content = with_retry(_get, f"FRED {src['series_id']}", dl["max_tries"],
-                         dl["backoff_base_seconds"])
+    content = with_retry(
+        _get, f"FRED {src['series_id']}", dl["max_tries"], dl["backoff_base_seconds"]
+    )
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     raw_path.write_bytes(content)
     log.info("%s: downloaded %d bytes from %s", name, len(content), src["url"])
-    write_meta(raw_path, {
-        "name": name,
-        "provider": src["provider"],
-        "series_id": src["series_id"],
-        "source_url": src["url"],
-        "source_used": "FRED",
-    })
+    write_meta(
+        raw_path,
+        {
+            "name": name,
+            "provider": src["provider"],
+            "series_id": src["series_id"],
+            "source_url": src["url"],
+            "source_used": "FRED",
+        },
+    )
     return raw_path
 
 
@@ -137,8 +153,15 @@ def _yf_download(ticker: str, start: str, end_inclusive: str, auto_adjust: bool)
     import yfinance as yf
 
     end_excl = (pd.Timestamp(end_inclusive) + timedelta(days=1)).strftime("%Y-%m-%d")
-    df = yf.download(ticker, start=start, end=end_excl, auto_adjust=auto_adjust,
-                     multi_level_index=False, progress=False, threads=False)
+    df = yf.download(
+        ticker,
+        start=start,
+        end=end_excl,
+        auto_adjust=auto_adjust,
+        multi_level_index=False,
+        progress=False,
+        threads=False,
+    )
     if df is None or df.empty:
         raise RuntimeError(f"yfinance returned no data for {ticker}")
     if isinstance(df.columns, pd.MultiIndex):  # defensive: older yfinance versions
@@ -172,31 +195,49 @@ def fetch_spx(cfg: Config, refresh: bool = False) -> Path:
     start, end = dates["download_start"], dates["download_end"]
     info: dict[str, Any] = {"name": "spx", "requested_start": start, "requested_end": end}
     try:
-        df = with_retry(lambda: _yf_download(src["ticker"], start, end, src["auto_adjust"]),
-                        f"yfinance {src['ticker']}", dl["max_tries"], dl["backoff_base_seconds"])
-        info.update({
-            "provider": src["provider"],
-            "ticker": src["ticker"],
-            "source_used": "yfinance",
-            "call": (f"yf.download('{src['ticker']}', start='{start}', end='{end}'+1d, "
-                     f"auto_adjust={src['auto_adjust']}, multi_level_index=False)"),
-            "auto_adjust": src["auto_adjust"],
-        })
+        df = with_retry(
+            lambda: _yf_download(src["ticker"], start, end, src["auto_adjust"]),
+            f"yfinance {src['ticker']}",
+            dl["max_tries"],
+            dl["backoff_base_seconds"],
+        )
+        info.update(
+            {
+                "provider": src["provider"],
+                "ticker": src["ticker"],
+                "source_used": "yfinance",
+                "call": (
+                    f"yf.download('{src['ticker']}', start='{start}', end='{end}'+1d, "
+                    f"auto_adjust={src['auto_adjust']}, multi_level_index=False)"
+                ),
+                "auto_adjust": src["auto_adjust"],
+            }
+        )
         log.info("spx: SOURCE USED = yfinance %s (%d rows)", src["ticker"], len(df))
     except Exception as exc:  # noqa: BLE001
-        log.error("spx: yfinance failed after retries (%s). Trying fallback %s %s",
-                  exc, src["fallback_provider"], src["fallback_ticker"])
-        df = with_retry(lambda: _stooq_download(src["fallback_ticker"], start, end),
-                        f"stooq {src['fallback_ticker']}", dl["max_tries"],
-                        dl["backoff_base_seconds"])
-        info.update({
-            "provider": src["fallback_provider"],
-            "ticker": src["fallback_ticker"],
-            "source_used": "stooq (fallback)",
-            "fallback_reason": f"{type(exc).__name__}: {exc}",
-        })
-        log.warning("spx: SOURCE USED = Stooq fallback %s (%d rows)", src["fallback_ticker"],
-                    len(df))
+        log.error(
+            "spx: yfinance failed after retries (%s). Trying fallback %s %s",
+            exc,
+            src["fallback_provider"],
+            src["fallback_ticker"],
+        )
+        df = with_retry(
+            lambda: _stooq_download(src["fallback_ticker"], start, end),
+            f"stooq {src['fallback_ticker']}",
+            dl["max_tries"],
+            dl["backoff_base_seconds"],
+        )
+        info.update(
+            {
+                "provider": src["fallback_provider"],
+                "ticker": src["fallback_ticker"],
+                "source_used": "stooq (fallback)",
+                "fallback_reason": f"{type(exc).__name__}: {exc}",
+            }
+        )
+        log.warning(
+            "spx: SOURCE USED = Stooq fallback %s (%d rows)", src["fallback_ticker"], len(df)
+        )
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     buf = io.StringIO()
     df.to_csv(buf, date_format="%Y-%m-%d")

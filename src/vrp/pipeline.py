@@ -32,11 +32,18 @@ DATE_COLS = ["fwd_window_start", "fwd_window_end"]
 def git_info(root: Path) -> dict[str, str | bool]:
     """Current git commit hash and whether the working tree is dirty."""
     try:
-        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True,
-                              text=True, check=True).stdout.strip()
-        dirty = bool(subprocess.run(["git", "status", "--porcelain", "--", "src", "config.yaml"],
-                                    cwd=root, capture_output=True, text=True,
-                                    check=True).stdout.strip())
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        dirty = bool(
+            subprocess.run(
+                ["git", "status", "--porcelain", "--", "src", "config.yaml"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+        )
         return {"commit": head, "code_dirty": dirty}
     except (subprocess.CalledProcessError, FileNotFoundError):
         return {"commit": "unknown", "code_dirty": True}
@@ -45,8 +52,7 @@ def git_info(root: Path) -> dict[str, str | bool]:
 def write_csv(df: pd.DataFrame, path: Path, index_label: str | None = "date") -> Path:
     """Write a CSV with ISO dates and log its checksum."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(path, index=index_label is not None, index_label=index_label,
-              date_format="%Y-%m-%d")
+    df.to_csv(path, index=index_label is not None, index_label=index_label, date_format="%Y-%m-%d")
     log.info("wrote %s (%d rows, sha256=%s…)", path.name, len(df), sha256_file(path)[:12])
     return path
 
@@ -73,7 +79,8 @@ def file_entry(path: Path, df: pd.DataFrame, cfg: Config) -> dict[str, object]:
         first, last = str(df.index.min().date()), str(df.index.max().date())
     elif "start_date" in df and len(df):
         first, last = str(pd.to_datetime(df["start_date"]).min().date()), str(
-            pd.to_datetime(df["end_date"]).max().date())
+            pd.to_datetime(df["end_date"]).max().date()
+        )
     else:
         first = last = None
     return {
@@ -94,10 +101,13 @@ def run_data(cfg: Config, refresh: bool) -> None:
     for name, p in raw.items():
         if p is not None:
             m = read_meta(p)
-            q.note("Sources used", f"{name}: {m.get('provider')} ({m.get('series_id') or m.get('ticker')}), "
-                   f"source_used={m.get('source_used')}, downloaded {m.get('downloaded_utc')}, "
-                   f"{m.get('row_count')} raw rows {m.get('first_date')}..{m.get('last_date')}, "
-                   f"sha256 {str(m.get('sha256'))[:12]}…")
+            q.note(
+                "Sources used",
+                f"{name}: {m.get('provider')} ({m.get('series_id') or m.get('ticker')}), "
+                f"source_used={m.get('source_used')}, downloaded {m.get('downloaded_utc')}, "
+                f"{m.get('row_count')} raw rows {m.get('first_date')}..{m.get('last_date')}, "
+                f"sha256 {str(m.get('sha256'))[:12]}…",
+            )
         else:
             q.note("Sources used", f"{name}: NOT AVAILABLE (optional source failed)")
 
@@ -108,8 +118,9 @@ def run_data(cfg: Config, refresh: bool) -> None:
     write_csv(spx, interim / "spx.csv")
     vxo = None
     if raw.get("vxo") is not None:
-        vxo = clean.clean_vix_like(clean.read_fred_raw(raw["vxo"], "vxo_close"), "vxo", cfg, q,
-                                   check_range=False)
+        vxo = clean.clean_vix_like(
+            clean.read_fred_raw(raw["vxo"], "vxo_close"), "vxo", cfg, q, check_range=False
+        )
         write_csv(vxo.to_frame("vxo_close"), interim / "vxo.csv")
     if raw.get("usrec") is not None:
         usrec = clean.clean_usrec(clean.read_fred_raw(raw["usrec"], "usrec"), cfg, q)
@@ -120,19 +131,32 @@ def run_data(cfg: Config, refresh: bool) -> None:
     monthly = sampling.build_monthly_sample(panel, cfg)
     q.counts["daily panel rows"] = len(panel)
     q.counts["daily panel rows with complete forward window"] = int(
-        panel["fwd_window_complete"].sum())
+        panel["fwd_window_complete"].sum()
+    )
     q.counts["monthly sample rows"] = len(monthly)
 
     ov = sampling.window_overlap(monthly, panel)
     summ = sampling.overlap_summary(ov)
-    q.note("Monthly sampling", f"{len(monthly)} monthly rows "
-           f"({monthly['month'].iloc[0]} to {monthly['month'].iloc[-1]})")
-    q.note("Monthly sampling", "consecutive forward-window overlap (trading days): "
-           + ", ".join(f"{k}={v:.3f}" if isinstance(v, float) else f"{k}={v}"
-                       for k, v in summ.items()))
-    q.table("Monthly sampling::Overlap distribution (overlap_days > 0 shared, < 0 uncovered)",
-            ov["overlap_days"].value_counts().sort_index().rename_axis("overlap_days")
-            .reset_index(name="pairs"))
+    q.note(
+        "Monthly sampling",
+        f"{len(monthly)} monthly rows "
+        f"({monthly['month'].iloc[0]} to {monthly['month'].iloc[-1]})",
+    )
+    q.note(
+        "Monthly sampling",
+        "consecutive forward-window overlap (trading days): "
+        + ", ".join(
+            f"{k}={v:.3f}" if isinstance(v, float) else f"{k}={v}" for k, v in summ.items()
+        ),
+    )
+    q.table(
+        "Monthly sampling::Overlap distribution (overlap_days > 0 shared, < 0 uncovered)",
+        ov["overlap_days"]
+        .value_counts()
+        .sort_index()
+        .rename_axis("overlap_days")
+        .reset_index(name="pairs"),
+    )
     log.info("sampling: window overlap summary %s", summ)
 
     ev = events.event_table()
@@ -158,11 +182,15 @@ def run_data(cfg: Config, refresh: bool) -> None:
     manifest = {
         "generated_utc": datetime.now(UTC).isoformat(timespec="seconds"),
         "git": git_info(cfg.root),
-        "config": {"window": cfg.window, "annualisation": cfg.annualisation,
-                   **cfg["dates"]},
-        "raw_sources": {n: {k: read_meta(p).get(k) for k in
-                            ("provider", "source_used", "sha256", "row_count", "downloaded_utc")}
-                        for n, p in raw.items() if p is not None},
+        "config": {"window": cfg.window, "annualisation": cfg.annualisation, **cfg["dates"]},
+        "raw_sources": {
+            n: {
+                k: read_meta(p).get(k)
+                for k in ("provider", "source_used", "sha256", "row_count", "downloaded_utc")
+            }
+            for n, p in raw.items()
+            if p is not None
+        },
         "files": [file_entry(p, df, cfg) for p, df in written.values()]
         + [file_entry(reports / "event_stats.csv", stats.set_index("event_id"), cfg)],
     }
@@ -175,8 +203,9 @@ def run_data(cfg: Config, refresh: bool) -> None:
             log.error("HARD CHECK FAILED: %s — %s", c.name, c.detail)
         raise SystemExit(1)
     warns = [c for c in q.checks if not c.passed]
-    log.info("data stage finished: %d checks, %d warnings, 0 hard failures", len(q.checks),
-             len(warns))
+    log.info(
+        "data stage finished: %d checks, %d warnings, 0 hard failures", len(q.checks), len(warns)
+    )
 
 
 def run_figures(cfg: Config) -> None:
@@ -189,13 +218,18 @@ def run_figures(cfg: Config) -> None:
     if (interim / "usrec.csv").exists():
         usrec = pd.read_csv(interim / "usrec.csv", index_col=0, parse_dates=[0])["usrec"]
     coverage: dict[str, pd.DatetimeIndex] = {}
-    for label, fname in [("VIX (FRED VIXCLS)", "vix.csv"), ("S&P 500 (Yahoo ^GSPC)", "spx.csv"),
-                         ("Merged panel (both)", None), ("VXO (FRED VXOCLS)", "vxo.csv")]:
+    for label, fname in [
+        ("VIX (FRED VIXCLS)", "vix.csv"),
+        ("S&P 500 (Yahoo ^GSPC)", "spx.csv"),
+        ("Merged panel (both)", None),
+        ("VXO (FRED VXOCLS)", "vxo.csv"),
+    ]:
         if fname is None:
             coverage[label] = pd.DatetimeIndex(panel.index)
         elif (interim / fname).exists():
-            coverage[label] = pd.DatetimeIndex(pd.read_csv(interim / fname, index_col=0,
-                                                           parse_dates=[0]).index)
+            coverage[label] = pd.DatetimeIndex(
+                pd.read_csv(interim / fname, index_col=0, parse_dates=[0]).index
+            )
     paths = plots.make_all_figures(panel, monthly, ev, usrec, coverage, cfg)
     log.info("figures stage finished: %d files", len(paths))
 

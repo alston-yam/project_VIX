@@ -81,5 +81,15 @@ plots:
   dpi: 150
   formats: ["png", "svg"]
   source_note: "Data: Cboe via FRED (VIXCLS); S&P 500 via Yahoo Finance"
-  shade_events: ["gfc_2008", "covid_2020"]
+  # Events shaded on time-series charts, with the short label drawn for each.
+  shade_events:
+    ltcm_1998: "LTCM"
+    sep11_2001: "9/11"
+    gfc_2008: "GFC"
+    us_downgrade_2011: "US downgrade"
+    china_deval_2015: "China deval."
+    volmageddon_2018: "Volmageddon"
+    covid_2020: "COVID"
+    tariff_2025: "Tariffs"
+  headroom: 1.3   # y-axis top = data max x headroom, leaving space for event labels
   n_label_worst: 5

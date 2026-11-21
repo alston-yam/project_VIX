@@ -1,0 +1,169 @@
+{
+  "generated_utc": "2026-11-21T23:30:26+00:00",
+  "git": {
+    "commit": "d5a6fe2b8862a8a8f9e8affe442223268186b01d",
+    "code_dirty": false
+  },
+  "config": {
+    "window": 21,
+    "annualisation": 252,
+    "download_start": "1989-11-01",
+    "download_end": "2026-03-31",
+    "sample_start_month": "1990-01",
+    "sample_end_month": "2025-12",
+    "benchmark_start": "1990-01-01",
+    "benchmark_end": "2024-12-31",
+    "vix_new_methodology_date": "2003-09-22"
+  },
+  "raw_sources": {
+    "vix": {
+      "provider": "Cboe via FRED",
+      "source_used": "FRED",
+      "sha256": "5fdb14015c8fee857f1aae7ea54d799fe8e2eebc1b4dcab047cc7ac70e3a78a0",
+      "row_count": 9623,
+      "downloaded_utc": "2026-11-21T23:30:03+00:00"
+    },
+    "vxo": {
+      "provider": "Cboe via FRED",
+      "source_used": "FRED",
+      "sha256": "3ab3e522630a6b404fda6cd2d7ef33834139218bf00f5a290aa089361dd334e8",
+      "row_count": 9321,
+      "downloaded_utc": "2026-11-21T23:30:03+00:00"
+    },
+    "usrec": {
+      "provider": "NBER via FRED",
+      "source_used": "FRED",
+      "sha256": "7d28698513be7460870afa883c2325d3502ddaecd6b1e781ed5f655126341b44",
+      "row_count": 2063,
+      "downloaded_utc": "2026-11-21T23:30:03+00:00"
+    },
+    "spx": {
+      "provider": "Yahoo Finance via yfinance",
+      "source_used": "yfinance",
+      "sha256": "be693741d0c2f5410a5287b8e4752a334d038ece89c6e8f0eba807774e7d57d4",
+      "row_count": 9169,
+      "downloaded_utc": "2026-11-21T23:30:04+00:00"
+    }
+  },
+  "files": [
+    {
+      "path": "data/processed/daily_panel.csv",
+      "rows": 9125,
+      "columns": [
+        "spx_close",
+        "vix_close",
+        "vxo_close",
+        "ret_log",
+        "ret_spans_dropped_day",
+        "iv_ann_var",
+        "rv_past21_ann_var",
+        "rv_fwd21_ann_var",
+        "rv_fwd21_ann_vol_pct",
+        "payoff_var",
+        "payoff_scaled",
+        "vol_spread_pts",
+        "spx_fwd21_ret_log",
+        "fwd_window_start",
+        "fwd_window_end",
+        "fwd_window_complete"
+      ],
+      "first_date": "1990-01-02",
+      "last_date": "2026-03-31",
+      "sha256": "4627a6fe633962b744832192c5411480cdef2c30bd7f231c2f0eb33e3c2e3eee"
+    },
+    {
+      "path": "data/processed/daily_panel.parquet",
+      "rows": 9125,
+      "columns": [
+        "spx_close",
+        "vix_close",
+        "vxo_close",
+        "ret_log",
+        "ret_spans_dropped_day",
+        "iv_ann_var",
+        "rv_past21_ann_var",
+        "rv_fwd21_ann_var",
+        "rv_fwd21_ann_vol_pct",
+        "payoff_var",
+        "payoff_scaled",
+        "vol_spread_pts",
+        "spx_fwd21_ret_log",
+        "fwd_window_start",
+        "fwd_window_end",
+        "fwd_window_complete"
+      ],
+      "first_date": "1990-01-02",
+      "last_date": "2026-03-31",
+      "sha256": "a4e3f9810f83b2f686d31948771243ac57d4e5edbb66f37f7637f5ab88aeb55e"
+    },
+    {
+      "path": "data/processed/monthly_sample.csv",
+      "rows": 432,
+      "columns": [
+        "month",
+        "spx_close",
+        "vix_close",
+        "vxo_close",
+        "ret_log",
+        "ret_spans_dropped_day",
+        "iv_ann_var",
+        "rv_past21_ann_var",
+        "rv_fwd21_ann_var",
+        "rv_fwd21_ann_vol_pct",
+        "payoff_var",
+        "payoff_scaled",
+        "vol_spread_pts",
+        "spx_fwd21_ret_log",
+        "fwd_window_start",
+        "fwd_window_end",
+        "fwd_window_complete",
+        "is_selloff",
+        "selloff_decile",
+        "post_2003"
+      ],
+      "first_date": "1990-01-02",
+      "last_date": "2025-12-01",
+      "sha256": "25d7261bd61fec19024097b14f1541700a9fd74d02fce2a837301025f83610e8"
+    },
+    {
+      "path": "data/processed/events.csv",
+      "rows": 16,
+      "columns": [
+        "event_id",
+        "name",
+        "start_date",
+        "end_date",
+        "category",
+        "description",
+        "source_note"
+      ],
+      "first_date": "1990-08-01",
+      "last_date": "2025-04-30",
+      "sha256": "f618646a7dd2fff0a63b42dd7af1f021dcd7fd71892a02e0930a8b03421544c8"
+    },
+    {
+      "path": "outputs/reports/event_stats.csv",
+      "rows": 16,
+      "columns": [
+        "name",
+        "start_date",
+        "end_date",
+        "trading_days",
+        "max_vix_close",
+        "max_vix_date",
+        "worst_spx_log_ret",
+        "worst_spx_ret_date",
+        "spx_drawdown",
+        "drawdown_peak_date",
+        "drawdown_trough_date",
+        "n_overlapping_months",
+        "overlapping_months",
+        "min_payoff_scaled_overlap",
+        "mean_payoff_scaled_overlap"
+      ],
+      "first_date": "1990-08-01",
+      "last_date": "2025-04-30",
+      "sha256": "5a49d0725e091ccc34c266bd33650f9afd98e10e68c4cc4192b6277ba1cde25f"
+    }
+  ]
+}

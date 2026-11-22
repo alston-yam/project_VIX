@@ -5,7 +5,7 @@
 
 project:
   name: "S&P 500 Variance Risk Premium: Is the VIX Too Pessimistic?"
-  version: "v1-data-layer"
+  version: "v2-stats"
 
 dates:
   # Download window. Starts early so the first in-sample return exists, ends
@@ -93,3 +93,33 @@ plots:
     tariff_2025: "Tariffs"
   headroom: 1.3   # y-axis top = data max x headroom, leaving space for event labels
   n_label_worst: 5
+
+# ---------------------------------------------------------------------------
+# v2: statistical tests (src/vrp/stats.py, `make stats`)
+# ---------------------------------------------------------------------------
+stats:
+  alpha: 0.05                    # two-sided significance level; CIs are (1 - alpha)
+  nw_lags_monthly: 6             # Newey–West (Bartlett) lags for monthly data (Carr & Wu)
+  nw_lags_daily: 30              # for overlapping daily windows (21-day overlap; Carr & Wu use 30)
+  n_exclude_worst: 5             # "mean excluding the worst N months"
+  tail_sigma: 3.0                # count months below mean - k*sd vs a normal distribution
+  win_rate_null: 0.5             # H0 for the win-rate test
+  loss_share_null_decile: 0.10   # H0: worst-decile months carry 10% of losses (no clustering)
+  worst_decile: 1                # selloff_decile label for the worst 10% of S&P months
+  best_decile: 10
+  measures: ["payoff_var", "payoff_scaled", "vol_spread_pts"]   # Test 1
+  shape_measures: ["payoff_var", "payoff_scaled"]                # Tests 2, 3, 5
+  robustness_window: 22          # H = 22 trading days (≈ 30 calendar days)
+  bootstrap:
+    method: "circular block"     # resamples blocks of consecutive months (keeps autocorrelation)
+    block_length: 6              # months
+    n_resamples: 10000
+    seed: 20261122
+  permutation:
+    n_resamples: 10000
+    seed: 20261123
+  outputs:
+    variants: "monthly_variants.csv"   # written to paths.processed
+    tables: "stats_tables.csv"         # written to paths.reports
+    summary: "stats_summary.md"
+    claims: "pitch_claims.md"

@@ -75,6 +75,47 @@ Computed from the processed data by `events.py`. One row per event.
 | `overlapping_months` | text | `YYYY-MM:payoff_scaled` for each of those rows |
 | `min_payoff_scaled_overlap`, `mean_payoff_scaled_overlap` | fraction | Worst and mean `payoff_scaled` across those rows |
 
+## `data/processed/monthly_variants.csv` (v2, robustness inputs)
+
+Written by `--stage stats` (`stats.build_monthly_variants`). Same 432 monthly dates as
+`monthly_sample.csv`. New columns only: the v1 definitions are unchanged. Index column `date`.
+
+| Column | Unit | Formula / meaning | Known at close of t? |
+|---|---|---|---|
+| `month`, `post_2003`, `iv_ann_var`, `rv_fwd21_ann_var`, `payoff_var`, `payoff_scaled` | — | Copied from `monthly_sample.csv` | as there |
+| `rv_fwd22_ann_var` | annualised variance | (A/22) · Σ r² over **t+1 … t+22** (H = 22 ≈ 30 calendar days) | **no (outcome)** |
+| `rv_fwd21_dm_ann_var` | annualised variance | A · sample variance (ddof = 1) of r over **t+1 … t+21** (demeaned) | **no (outcome)** |
+| `iv_vxo_ann_var` | annualised variance | (VXO_t / 100)²; NaN where VXO is missing (ends 2021-09) | yes |
+| `payoff_var_h22`, `payoff_scaled_h22` | as v1 | `iv_ann_var` − `rv_fwd22_ann_var`; ÷ `iv_ann_var` | **no (outcome)** |
+| `payoff_var_dm`, `payoff_scaled_dm` | as v1 | `iv_ann_var` − `rv_fwd21_dm_ann_var`; ÷ `iv_ann_var` | **no (outcome)** |
+| `payoff_var_vxo`, `payoff_scaled_vxo` | as v1 | `iv_vxo_ann_var` − `rv_fwd21_ann_var`; ÷ `iv_vxo_ann_var` (S&P 100 options vs S&P 500 RV) | **no (outcome)** |
+
+## `outputs/reports/stats_tables.csv` (v2 results)
+
+One row per statistic. Sign convention: implied − realised.
+
+| Column | Meaning |
+|---|---|
+| `test` | `1_mean`, `2_shape`, `3_crash`, `4_forecast`, `5_robustness` |
+| `measure` | Column tested (`payoff_var`, `payoff_scaled`, `vol_spread_pts`; Test 4: `variance`, `vol_pct`, `log_variance`) |
+| `sample` | Sample or robustness variant |
+| `statistic` | What is estimated (e.g. `mean`, `win_rate`, `skewness`, `slope_b`) |
+| `estimate` | Point estimate, in the measure's unit (fractions for rates and shares) |
+| `ci_low`, `ci_high`, `ci_method` | 95% confidence interval and how it was computed (blank for descriptive rows) |
+| `null_value` | Value under H0 |
+| `test_name`, `p_value` | Hypothesis test and its two-sided p-value |
+| `n` | Observations used |
+| `note` | Extra detail (alternative p-values, caveats) |
+| `p_holm_within_measure` | Test 5 only: Holm-adjusted p across the robustness variants of one measure |
+
+`outputs/reports/stats_deciles.csv`: mean payoff per `selloff_decile` (`n`, `mean`, `ci_low`,
+`ci_high` (i.i.d. t), `win_rate`, `spx_fwd21_ret_mean`, `measure`). Descriptive; conditions on
+an outcome.
+
+`outputs/reports/pitch_claims.csv`: one row per candidate pitch claim (`id`, `test`, `claim`,
+`p_max` (largest p behind the claim), `ci_ok`, `p_holm`, `supported`, `reasons`, `evidence`,
+`caveat`, `fallback`). Rendered as `pitch_claims.md`.
+
 ## Interim files (`data/interim/`, not committed)
 
 | File | Columns |

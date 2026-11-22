@@ -5,6 +5,7 @@ Usage::
     python -m vrp.pipeline                 # everything (data + figures)
     python -m vrp.pipeline --stage data    # download (cached) → clean → features → sample → events
     python -m vrp.pipeline --stage figures # figures from processed data
+    python -m vrp.pipeline --stage stats   # v2 statistical tests, reports, claims, figures 07–11
     python -m vrp.pipeline --refresh       # ignore the raw-data cache
 """
 
@@ -19,7 +20,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from vrp import clean, events, features, plots, sampling, validate
+from vrp import clean, events, features, plots, sampling, stats, stats_report, validate
 from vrp.config import Config, load_config
 from vrp.download import download_all, read_meta, sha256_file
 from vrp.logging_setup import get_logger, setup_logging
@@ -234,10 +235,59 @@ def run_figures(cfg: Config) -> None:
     log.info("figures stage finished: %d files", len(paths))
 
 
+def run_stats(cfg: Config) -> None:
+    """v2: run Tests 1–5, write tables, summary, pitch claims, variants and figures 07–11."""
+    panel = read_processed(cfg, "daily_panel")
+    monthly = read_processed(cfg, "monthly_sample")
+    res = stats.run_all_tests(panel, monthly, cfg)
+    out = cfg["stats"]["outputs"]
+    reports = cfg.path("reports")
+    reports.mkdir(parents=True, exist_ok=True)
+
+    variants_path = write_csv(res.variants, cfg.path("processed") / out["variants"])
+    tables_path = write_csv(res.tables, reports / out["tables"], index_label=None)
+    dec = pd.concat([d.assign(measure=m) for m, d in res.deciles.items()], ignore_index=True)
+    deciles_path = write_csv(dec, reports / "stats_deciles.csv", index_label=None)
+    claims = stats_report.evaluate_claims(res)
+    claims_csv = write_csv(claims, reports / "pitch_claims.csv", index_label=None)
+    stats_report.write_summary(res, claims, reports / out["summary"])
+    stats_report.write_claims(res, claims, reports / out["claims"])
+    figs = plots.make_stats_figures(monthly, res, cfg)
+
+    # Add the v2 files to the manifest (replacing older entries for the same paths).
+    man_path = reports / "manifest.json"
+    manifest = json.loads(man_path.read_text(encoding="utf-8")) if man_path.exists() else {}
+    entries = [
+        file_entry(variants_path, res.variants, cfg),
+        file_entry(tables_path, res.tables, cfg),
+        file_entry(deciles_path, dec, cfg),
+        file_entry(claims_csv, claims, cfg),
+    ]
+    new_paths = {e["path"] for e in entries}
+    manifest["files"] = [
+        f for f in manifest.get("files", []) if f["path"] not in new_paths
+    ] + entries
+    manifest["stats"] = {
+        "generated_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+        "git": git_info(cfg.root),
+        "settings": {k: v for k, v in cfg["stats"].items() if k != "outputs"},
+        "claims_supported": int(claims["supported"].sum()),
+        "claims_total": int(len(claims)),
+    }
+    man_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    log.info(
+        "stats stage finished: %d result rows, %d/%d claims supported, %d figure files",
+        len(res.tables),
+        int(claims["supported"].sum()),
+        len(claims),
+        len(figs),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("--stage", choices=["all", "data", "figures"], default="all")
+    ap.add_argument("--stage", choices=["all", "data", "figures", "stats"], default="all")
     ap.add_argument("--refresh", action="store_true", help="re-download raw data")
     ap.add_argument("--config", default=None, help="path to config.yaml")
     args = ap.parse_args(argv)
@@ -250,6 +300,8 @@ def main(argv: list[str] | None = None) -> int:
         run_data(cfg, args.refresh)
     if args.stage in ("all", "figures"):
         run_figures(cfg)
+    if args.stage in ("all", "stats"):
+        run_stats(cfg)
     log.info("pipeline done")
     return 0
 

@@ -59,6 +59,21 @@ def forward_realised_variance(ret: pd.Series, window: int, ann: int) -> pd.Serie
     return trailing_realised_variance(ret, window, ann).shift(-window)
 
 
+def forward_realised_variance_demeaned(ret: pd.Series, window: int, ann: int) -> pd.Series:
+    """ann * sample variance (ddof=1) of r over t+1 .. t+window (strictly after t).
+
+    v2 robustness variant: subtracts the window's own mean return. ``.var()``
+    already divides by window − 1, so the annualisation factor is ``ann`` alone.
+    """
+    return ann * ret.rolling(window, min_periods=window).var(ddof=1).shift(-window)
+
+
+def forward_window_complete(ret: pd.Series, window: int) -> pd.Series:
+    """True where all ``window`` returns t+1 .. t+window exist."""
+    n = ret.notna().astype(int).rolling(window, min_periods=window).sum().shift(-window)
+    return n == window
+
+
 def add_features(panel: pd.DataFrame, window: int, ann: int) -> pd.DataFrame:
     """Add every daily-panel feature column to a merged VIX/S&P panel."""
     df = panel.copy()

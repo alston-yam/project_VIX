@@ -12,7 +12,7 @@ forecast (implied) with the variance the S&P 500 then delivered (realised).
 
 - **v1 (done, on `main`):** the data layer: downloads, cleaning, features, the monthly
   sample, events, validation reports and supporting figures. No hypothesis tests.
-- **v2 (next):** statistical tests. Is the mean payoff positive (t-stat, Newey–West)? How
+- **v2 (done, branch `v2-stats`):** statistical tests. Is the mean payoff positive (t-stat, Newey–West)? How
   lopsided is it (win rate, skew, kurtosis, worst month vs average gain, mean excluding the
   worst 5)? Do losses cluster in sell-offs? Robustness: post-2003 only, H = 22, demeaned RV, VXO.
 - **v3:** slide-ready deck charts using the v2 results.
@@ -174,7 +174,7 @@ helpers), a `--stage deck` stage, and write to `outputs/figures/deck/`.
 - [ ] Methodology and README updated; judgement calls recorded in "Decisions & assumptions".
 - [ ] No look-ahead, sign convention stated, units labelled, nothing fudged.
 
-## 9. Current state (v1, for orientation)
+## 9. Current state (v1 + v2, for orientation)
 
 - Daily panel 9,125 rows (1990-01-02 → 2026-03-31); monthly sample 432 rows (1990-01 → 2025-12).
 - Sanity checks all ✅: mean VIX 19.54 (benchmark ≈ 19.6), mean realised vol 15.34 (≈ 15.5),
@@ -182,3 +182,8 @@ helpers), a `--stage deck` stage, and write to `outputs/figures/deck/`.
 - Worst monthly `payoff_scaled`: 2020-03 (−6.8), 2008-09 (−5.1), 2015-08 (−4.2), 2025-04 (−3.8),
   2008-10 (−3.3). These are descriptive only; no tests have been run yet.
 - The Stooq fallback for the S&P download is implemented but has never been exercised.
+- v2 (`make stats`): 5 tests in `src/vrp/stats.py`, reports in `outputs/reports/stats_summary.md`,
+  claims log `outputs/reports/pitch_claims.md` (17 of 23 candidate claims pass the CI + Holm rule).
+  Not supported: raw-variance skew (bootstrap CI reaches 0), avg loss > avg gain, raw-variance
+  mean post-2003 (NW p ≈ 0.08), post- vs pre-2003 difference after Holm. Read the claims file
+  before quoting any v2 number.

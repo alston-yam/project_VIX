@@ -1,4 +1,4 @@
-# Methodology (v1: data layer)
+# Methodology (v1: data layer; v2: statistical tests)
 
 This document explains, step by step, how raw downloads become the analysis-ready
 files in `data/processed/`. Read `docs/primer.md` first for the concepts. Every
@@ -186,3 +186,92 @@ Where the brief was ambiguous we chose the most transparent, auditable option:
     tree); `tests/conftest.py` holds shared test fixtures.
 15. **Parquet.** The daily panel is written as both CSV (human-readable) and Parquet (exact
     dtypes); the tests read the Parquet file.
+
+## 9. v2: statistical tests (`stats.py`, `stats_report.py`)
+
+Run with `make stats` (`python -m vrp.pipeline --stage stats`); `make all` includes it.
+Every parameter is under `stats:` in `config.yaml`. Results: `outputs/reports/stats_summary.md`
+(all tables), `stats_tables.csv`, `stats_deciles.csv`, `pitch_claims.md` / `.csv`, and
+figures `07`–`11`. Sign convention throughout: **implied − realised**.
+
+### 9.1 Inference toolkit
+
+- **Confidence intervals.** Every estimate that is a test statistic has a 95% CI. Means use
+  three methods side by side: i.i.d. t, **Newey–West** (Bartlett kernel, 6 lags monthly, 30 lags
+  for the overlapping daily sample; statsmodels' n/(n−1) correction) and a **circular block
+  bootstrap** (blocks of 6 consecutive months, 10,000 resamples, fixed seed). Statistics with no
+  closed-form SE (median, skewness, kurtosis, ratios, shares, trimmed means) use the bootstrap.
+- **Why a block bootstrap.** Monthly payoffs have lag-1 autocorrelation of about 0.14–0.21
+  (volatility clusters), so resampling single months would understate uncertainty. Blocks keep
+  that dependence.
+- **p-values** are two-sided. Bootstrap p = P*(|θ* − θ̂| ≥ |θ̂ − θ0|) with a +1 correction, so
+  the smallest reportable value is 1/10,001 ≈ 0.0001 ("≤ 0.0001" in the reports).
+- **Multiple testing.** Robustness variants are Holm-adjusted per measure; the pitch claims are
+  Holm-adjusted across all candidate claims.
+
+### 9.2 The five tests
+
+1. **Mean (H0: mean = 0)** for `payoff_scaled`, `payoff_var` and `vol_spread_pts`; plus the
+   median (sign test, bootstrap CI) and the mean excluding the worst 5 months (bootstrapped: the
+   worst months are re-identified in each resample).
+2. **Shape.** Win rate vs 50% (exact binomial, Wilson and bootstrap CIs); skewness and excess
+   kurtosis (bias-corrected; bootstrap CIs; D'Agostino / Anscombe–Glynn p-values); Jarque–Bera;
+   mean − median (a robust lopsidedness measure); average gain vs average loss; months more than
+   3 sd below the mean vs the normal expectation (exact binomial); worst month and loss
+   concentration (descriptive).
+3. **Crash clustering.** Correlation of the payoff with the S&P 500 log return **over the same
+   window** (Fisher-z and bootstrap CIs; Spearman), sell-off vs other months (Welch t,
+   Mann–Whitney, bootstrap; Fisher exact on loss rates), worst vs best S&P decile (both contain
+   large moves, so this isolates direction), and the share of all losses in the worst decile vs
+   a 10% no-clustering null (label-permutation test, 10,000 shuffles).
+4. **Forecast bias (Mincer–Zarnowitz).** RV_{t→t+21} = a + b·IV_t + e in variance, vol and log
+   variance; Newey–West SEs; Wald test of a = 0 and b = 1 jointly.
+5. **Robustness.** Mean payoff (NW CI, plus bootstrap CI in the note) for: post-2003 only,
+   pre-2003 only, H = 22, demeaned RV, VXO instead of VIX (and the VIX on the same months),
+   excluding the worst 5 months, and all overlapping daily windows (NW 30 lags). Also the
+   post- minus pre-2003 difference (Welch t, bootstrap).
+
+### 9.3 No look-ahead in v2
+
+- The only **predictor** anywhere is implied variance / the VIX at the close of t (Test 4).
+  `stats.require_known_at_t` raises if any outcome column (or any name containing `fwd`) is used
+  as a regressor; the tests check this.
+- Tests 1, 2 and 5 describe outcomes. Test 3 **conditions on** outcomes (`spx_fwd21_ret_log`,
+  `is_selloff`, `selloff_decile`) to describe *when* losses happen; every table, chart and claim
+  says it is not a forecast available at t.
+- The H = 22 and demeaned variants use returns t+1 … t+H only. `tests/test_stats.py` hand-checks
+  them and runs mutation tests: changing prices after t+22 or the VIX after t leaves row t
+  unchanged; changing the price before t (day t's own return) leaves them unchanged; changing the
+  price at t+1 changes them.
+- `selloff_decile` uses the full-sample distribution of forward returns. That is fine for
+  description, and it is never used as a signal.
+
+### 9.4 Pitch-claim rule
+
+`pitch_claims.md` lists candidate statements. A claim is **supported** only if, for every piece of
+evidence, the 95% CI excludes the null *in the claimed direction*, and the largest p-value behind
+it, Holm-adjusted across all candidate claims, is below 0.05. Unsupported claims are listed
+with the reason and an honest alternative wording. All numbers in the file are generated.
+
+### 9.5 Decisions & assumptions (v2)
+
+16. **Five tests.** The brief's three questions (positive mean, lopsidedness, sell-off clustering)
+    plus robustness became Tests 1, 2, 3 and 5. We added Test 4 (Mincer–Zarnowitz) because it
+    asks the project title's question directly: is the VIX a biased forecast?
+17. **Block length 6 months** for the bootstrap, matching the 6 Newey–West lags; the
+    autocorrelation of the payoffs dies out after 1–2 lags, so 6 is conservative.
+18. **Two-sided tests** throughout, even where the hypothesis has a direction (more
+    conservative; the claim rule then also checks the direction).
+19. **Skewness/kurtosis CIs.** Percentile bootstrap CIs of higher moments are wide and unstable
+    when a single month dominates (e.g. March 2020 in raw variance). We report them anyway and
+    added mean − median as a robust check; the raw-variance skewness claim fails the rule for
+    this reason.
+20. **Sell-off = worst decile.** In this sample the −5% `is_selloff` threshold selects exactly the
+    44 decile-1 months, so Test 3 reports them once and notes the overlap.
+21. **Worst vs best decile bootstrap** resamples blocks within the 88 months of the two deciles
+    (not consecutive in time); the Welch t-test is the primary test.
+22. **Sharpe ratio** is reported for the scaled payoff (no risk-free rate subtracted: a variance
+    swap costs nothing upfront), only to show that it flatters short volatility.
+23. **Demeaned RV** uses ddof = 1 and ×252 (not ×252/(H−1)), fixing the primer-noted bug.
+24. **VXO** comparisons use S&P 100 implied variance against S&P 500 realised variance, so they
+    test the sign of the premium, not its exact size.

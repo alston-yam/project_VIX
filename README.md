@@ -1,17 +1,21 @@
 # S&P 500 Variance Risk Premium: Is the VIX Too Pessimistic?
 
-Oxford Alpha Fund Quant Bootcamp team project. **This is v1: the data layer only.** It
-builds clean, documented, look-ahead-safe datasets and supporting charts. No hypothesis
-tests yet.
+Oxford Alpha Fund Quant Bootcamp team project. **v1** builds clean, documented,
+look-ahead-safe datasets and supporting charts. **v2** runs five statistical tests on them,
+with 95% confidence intervals for every statistic, and writes a log of the claims the data
+supports for the pitch (`outputs/reports/pitch_claims.md`).
 
 ## Project question
 
 Each month from 1990 to 2025 we compare the variance the **VIX forecast** with the variance
-the **S&P 500 then delivered**. Later versions will test:
+the **S&P 500 then delivered**. v2 tests:
 
-1. whether the gap is reliably positive (t-stat > 2);
-2. how lopsided the payoff is (win rate, skew, worst loss vs average gain);
-3. whether losses cluster in market sell-offs (crash-risk compensation).
+1. whether the gap is reliably positive (i.i.d. t, Newey–West, block bootstrap);
+2. how lopsided the payoff is (win rate, skew, kurtosis, worst loss vs average gain);
+3. whether losses cluster in market sell-offs (crash-risk compensation);
+4. whether the VIX is an unbiased forecast of realised variance (Mincer–Zarnowitz);
+5. whether the result survives robustness checks (post-2003, H = 22, demeaned RV, VXO,
+   overlapping daily windows, dropping the worst months).
 
 Background reading: [`docs/primer.md`](docs/primer.md).
 
@@ -35,6 +39,7 @@ and report, draws the figures and runs the tests. Other targets:
 | `make data` | download (cached) → clean → features → monthly sample → events → validation reports |
 | `make refresh` | same as `make data`, but re-downloads everything |
 | `make figures` | redraw the figures from processed data |
+| `make stats` | v2: run the five tests → reports, pitch claims, figures 07–11 |
 | `make test` | run the test suite |
 | `make lint` / `make format` | check / apply black + ruff |
 | `make clean` | delete raw/interim data, logs and caches (keeps committed outputs) |
@@ -67,7 +72,9 @@ and report, draws the figures and runs the tests. Other targets:
 │   ├── sampling.py           monthly sample, window-overlap measurement
 │   ├── events.py             event table + event-window stats
 │   ├── validate.py           data-quality checks, reports, sanity summary
-│   ├── plots.py              figures
+│   ├── plots.py              figures (v1: 01–06; v2 tests: 07–11)
+│   ├── stats.py              v2: the five statistical tests (CIs, p-values, robustness variants)
+│   ├── stats_report.py       v2: stats_summary.md and the pitch-claims log
 │   └── pipeline.py           orchestrates everything: python -m vrp.pipeline
 ├── tests/                    look-ahead, formula and cleaning tests
 ├── outputs/
@@ -122,14 +129,16 @@ that change future prices and check that past values do not move.
 | `outputs/reports/sanity_summary.md` | our numbers vs published benchmarks |
 | `outputs/reports/manifest.json` | each processed file's rows, columns, dates, SHA-256 and git commit |
 | `outputs/figures/01…06` | price, VIX vs realised vol, scatter, payoff histogram, payoff timeline, coverage |
+| `data/processed/monthly_variants.csv` | v2 robustness payoffs: H = 22, demeaned RV, VXO |
+| `outputs/reports/stats_summary.md`, `stats_tables.csv`, `stats_deciles.csv` | v2: every test statistic with 95% CI, test and p-value |
+| `outputs/reports/pitch_claims.md` / `.csv` | v2: claims the data supports (and does not), with evidence |
+| `outputs/figures/07…11` | v2: one figure per test (means, distribution, sell-offs, Mincer–Zarnowitz, robustness) |
 
 v1 sanity check (1990–2024, monthly sample): mean VIX **19.54** (benchmark ≈ 19.6), mean
 realised vol **15.34** (≈ 15.5), **432** monthly rows, highest VIX close **82.69 on 2020-03-16**.
 
 ## Next steps
 
-- **v2: statistical tests.** Mean payoff with plain and Newey–West t-stats; win rate, skew,
-  kurtosis, worst month vs average gain, mean excluding the worst 5 months; sell-off
-  conditioning using `is_selloff` / `selloff_decile`; post-2003 and H = 22 robustness;
-  demeaned realised variance; VXO comparison.
+- **v2: statistical tests (done).** See `outputs/reports/stats_summary.md`,
+  `outputs/reports/pitch_claims.md` and `docs/methodology.md` §9.
 - **v3: deck charts.** Slide-ready versions of the figures with the v2 results.

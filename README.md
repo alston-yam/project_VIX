@@ -15,6 +15,10 @@ the **S&P 500 then delivered**. Later versions will test:
 
 Background reading: [`docs/primer.md`](docs/primer.md).
 
+**Contributing (people or AI assistants):** read [`CLAUDE.md`](CLAUDE.md) first. It covers
+the architecture, the no-look-ahead and naming rules, conventions, and exactly how to add v2
+statistics or v3 deck charts so they fit the framework. Claude Code loads it automatically.
+
 ## Quickstart
 
 Requires Python 3.11 and `make`.
@@ -39,6 +43,7 @@ and report, draws the figures and runs the tests. Other targets:
 
 ```
 ├── README.md                 this file
+├── CLAUDE.md                 contributor / AI-assistant guide (read before changing code)
 ├── config.yaml               every parameter: dates, tickers, URLs, window (21), annualisation (252), paths
 ├── Makefile                  make data / figures / test / all / clean
 ├── requirements.txt          pinned versions

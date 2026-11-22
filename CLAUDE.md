@@ -12,7 +12,7 @@ forecast (implied) with the variance the S&P 500 then delivered (realised).
 
 - **v1 (done, on `main`):** the data layer: downloads, cleaning, features, the monthly
   sample, events, validation reports and supporting figures. No hypothesis tests.
-- **v2 (done, branch `v2-stats`):** statistical tests. Is the mean payoff positive (t-stat, Newey–West)? How
+- **v2 (done):** statistical tests. Is the mean payoff positive (t-stat, Newey–West)? How
   lopsided is it (win rate, skew, kurtosis, worst month vs average gain, mean excluding the
   worst 5)? Do losses cluster in sell-offs? Robustness: post-2003 only, H = 22, demeaned RV, VXO.
 - **v3:** slide-ready deck charts using the v2 results.
@@ -59,9 +59,11 @@ src/vrp/
   sampling.py            build_monthly_sample(), window_overlap(), overlap_summary()
   events.py              EVENTS list (dates only) → event_stats() computed from data → docs/events.md
   validate.py            QualityLog (notes/tables/checks), validate_outputs(), sanity_table(), report writers, df_to_md()
-  plots.py               shared style (COLORS, STYLE), footnote(), shade_events(), save() → PNG+SVG
+  plots.py               shared style (COLORS, STYLE), footnote(), shade_events(), save() → PNG+SVG; v2 figures 07–11
+  stats.py               v2 tests: mean_nw(), Bootstrapper, test_mean/shape/crash/forecast/robustness(), require_known_at_t()
+  stats_report.py        v2 stats_summary.md + pitch_claims.md (claim rule: CI direction + Holm)
   pipeline.py            orchestrates stages; read_processed(cfg, name); write_csv(); manifest.json
-tests/                   conftest.py (synthetic panel builders + real-data fixtures), test_alignment/features/clean
+tests/                   conftest.py (synthetic panel builders + real-data fixtures), test_alignment/features/clean/stats
 notebooks/               loads processed data and calls src/; no logic of its own
 ```
 
@@ -127,6 +129,10 @@ If a task seems to need breaking one, stop and ask the user.
 
 ## 6. How to add v2 (statistical tests): the intended shape
 
+> v2 has been built this way (`stats.py`, `stats_report.py`, `--stage stats`,
+> `tests/test_stats.py`, methodology §9). Extend it rather than starting again; the notes
+> below describe the shape it follows.
+
 Follow the existing pattern so everything plugs together:
 
 1. **New module `src/vrp/stats.py`**: pure functions that take the monthly/daily DataFrames and
@@ -180,10 +186,13 @@ helpers), a `--stage deck` stage, and write to `outputs/figures/deck/`.
 - Sanity checks all ✅: mean VIX 19.54 (benchmark ≈ 19.6), mean realised vol 15.34 (≈ 15.5),
   highest VIX close 82.69 on 2020-03-16. 83.8% of months have VIX > realised vol.
 - Worst monthly `payoff_scaled`: 2020-03 (−6.8), 2008-09 (−5.1), 2015-08 (−4.2), 2025-04 (−3.8),
-  2008-10 (−3.3). These are descriptive only; no tests have been run yet.
+  2008-10 (−3.3). These are descriptive; the v2 tests are below.
 - The Stooq fallback for the S&P download is implemented but has never been exercised.
-- v2 (`make stats`): 5 tests in `src/vrp/stats.py`, reports in `outputs/reports/stats_summary.md`,
-  claims log `outputs/reports/pitch_claims.md` (17 of 23 candidate claims pass the CI + Holm rule).
-  Not supported: raw-variance skew (bootstrap CI reaches 0), avg loss > avg gain, raw-variance
-  mean post-2003 (NW p ≈ 0.08), post- vs pre-2003 difference after Holm. Read the claims file
-  before quoting any v2 number.
+- **v2 (`make stats`):** five tests in `src/vrp/stats.py` (mean > 0, payoff shape, sell-off
+  clustering, Mincer–Zarnowitz forecast bias, robustness) with 95% CIs (i.i.d., Newey–West,
+  block bootstrap). Reports: `outputs/reports/stats_summary.md`; claims log
+  `outputs/reports/pitch_claims.md`, which marks a claim as supported only if every CI excludes
+  the null in the claimed direction and the Holm-adjusted p < 0.05: 17 of 23 pass. Not
+  supported: raw-variance skew (bootstrap CI reaches 0), average loss > average gain,
+  raw-variance mean post-2003 (NW p ≈ 0.08), and the post- vs pre-2003 difference after Holm.
+  Read the claims file before quoting any v2 number.

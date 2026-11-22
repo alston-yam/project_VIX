@@ -2,8 +2,9 @@
 
 Oxford Alpha Fund Quant Bootcamp team project. **v1** builds clean, documented,
 look-ahead-safe datasets and supporting charts. **v2** runs five statistical tests on them,
-with 95% confidence intervals for every statistic, and writes a log of the claims the data
-supports for the pitch (`outputs/reports/pitch_claims.md`).
+with 95% confidence intervals for every statistic, draws one figure per test (07–11) and
+writes a log of the claims the data does and does not support for the pitch
+(`outputs/reports/pitch_claims.md`).
 
 ## Project question
 
@@ -140,5 +141,6 @@ realised vol **15.34** (≈ 15.5), **432** monthly rows, highest VIX close **82.
 ## Next steps
 
 - **v2: statistical tests (done).** See `outputs/reports/stats_summary.md`,
-  `outputs/reports/pitch_claims.md` and `docs/methodology.md` §9.
+  `outputs/reports/pitch_claims.md` and `docs/methodology.md` §9. v2 needs `scipy` and
+  `statsmodels`, so re-run `pip install -r requirements.txt` after pulling.
 - **v3: deck charts.** Slide-ready versions of the figures with the v2 results.

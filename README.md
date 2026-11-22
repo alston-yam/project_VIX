@@ -1,17 +1,24 @@
 # S&P 500 Variance Risk Premium: Is the VIX Too Pessimistic?
 
-Oxford Alpha Fund Quant Bootcamp team project. **This is v1: the data layer only.** It
-builds clean, documented, look-ahead-safe datasets and supporting charts. No hypothesis
-tests yet.
+Oxford Alpha Fund Quant Bootcamp team project. **`main` holds v1: the data layer.** It
+builds clean, documented, look-ahead-safe datasets and supporting charts.
+
+**v2 (statistical tests) is on the [`v2-stats`](../../tree/v2-stats) branch, awaiting review
+before it is merged.** It runs five tests with 95% confidence intervals for every statistic,
+draws one figure per test (07–11) and writes a log of the claims the data does and does not
+support for the pitch (`outputs/reports/pitch_claims.md` on that branch).
 
 ## Project question
 
 Each month from 1990 to 2025 we compare the variance the **VIX forecast** with the variance
-the **S&P 500 then delivered**. Later versions will test:
+the **S&P 500 then delivered**. The v2 tests (branch `v2-stats`) ask:
 
-1. whether the gap is reliably positive (t-stat > 2);
-2. how lopsided the payoff is (win rate, skew, worst loss vs average gain);
-3. whether losses cluster in market sell-offs (crash-risk compensation).
+1. whether the gap is reliably positive (i.i.d. t, Newey–West, block bootstrap);
+2. how lopsided the payoff is (win rate, skew, kurtosis, worst loss vs average gain);
+3. whether losses cluster in market sell-offs (crash-risk compensation);
+4. whether the VIX is an unbiased forecast of realised variance (Mincer–Zarnowitz);
+5. whether the result survives robustness checks (post-2003, H = 22, demeaned RV, VXO,
+   overlapping daily windows, dropping the worst months).
 
 Background reading: [`docs/primer.md`](docs/primer.md).
 
@@ -128,8 +135,8 @@ realised vol **15.34** (≈ 15.5), **432** monthly rows, highest VIX close **82.
 
 ## Next steps
 
-- **v2: statistical tests.** Mean payoff with plain and Newey–West t-stats; win rate, skew,
-  kurtosis, worst month vs average gain, mean excluding the worst 5 months; sell-off
-  conditioning using `is_selloff` / `selloff_decile`; post-2003 and H = 22 robustness;
-  demeaned realised variance; VXO comparison.
+- **v2: statistical tests (implemented on `v2-stats`, PR pending).** Adds `src/vrp/stats.py`,
+  `src/vrp/stats_report.py`, a `make stats` stage, figures 07–11, `monthly_variants.csv`
+  (H = 22, demeaned RV, VXO) and the reports `stats_summary.md` and `pitch_claims.md`. It also
+  adds `scipy` and `statsmodels` to `requirements.txt`. Check out the branch to run it.
 - **v3: deck charts.** Slide-ready versions of the figures with the v2 results.

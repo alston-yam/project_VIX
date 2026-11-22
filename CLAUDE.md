@@ -12,7 +12,7 @@ forecast (implied) with the variance the S&P 500 then delivered (realised).
 
 - **v1 (done, on `main`):** the data layer: downloads, cleaning, features, the monthly
   sample, events, validation reports and supporting figures. No hypothesis tests.
-- **v2 (next):** statistical tests. Is the mean payoff positive (t-stat, Newey–West)? How
+- **v2 (implemented on branch `v2-stats`, PR pending; not yet on `main`):** statistical tests. Is the mean payoff positive (t-stat, Newey–West)? How
   lopsided is it (win rate, skew, kurtosis, worst month vs average gain, mean excluding the
   worst 5)? Do losses cluster in sell-offs? Robustness: post-2003 only, H = 22, demeaned RV, VXO.
 - **v3:** slide-ready deck charts using the v2 results.
@@ -127,6 +127,10 @@ If a task seems to need breaking one, stop and ask the user.
 
 ## 6. How to add v2 (statistical tests): the intended shape
 
+> v2 has been built this way on the `v2-stats` branch (`stats.py`, `stats_report.py`,
+> `--stage stats`, `tests/test_stats.py`, methodology §9). Extend that branch, or work from
+> `main` once it is merged, rather than starting v2 again.
+
 Follow the existing pattern so everything plugs together:
 
 1. **New module `src/vrp/stats.py`**: pure functions that take the monthly/daily DataFrames and
@@ -174,7 +178,7 @@ helpers), a `--stage deck` stage, and write to `outputs/figures/deck/`.
 - [ ] Methodology and README updated; judgement calls recorded in "Decisions & assumptions".
 - [ ] No look-ahead, sign convention stated, units labelled, nothing fudged.
 
-## 9. Current state (v1, for orientation)
+## 9. Current state (for orientation)
 
 - Daily panel 9,125 rows (1990-01-02 → 2026-03-31); monthly sample 432 rows (1990-01 → 2025-12).
 - Sanity checks all ✅: mean VIX 19.54 (benchmark ≈ 19.6), mean realised vol 15.34 (≈ 15.5),
@@ -182,3 +186,9 @@ helpers), a `--stage deck` stage, and write to `outputs/figures/deck/`.
 - Worst monthly `payoff_scaled`: 2020-03 (−6.8), 2008-09 (−5.1), 2015-08 (−4.2), 2025-04 (−3.8),
   2008-10 (−3.3). These are descriptive only; no tests have been run yet.
 - The Stooq fallback for the S&P download is implemented but has never been exercised.
+- **v2 on `v2-stats` (not merged):** five tests (mean > 0, payoff shape, sell-off clustering,
+  Mincer–Zarnowitz forecast bias, robustness) with 95% CIs (i.i.d., Newey–West, block
+  bootstrap). `pitch_claims.md` marks a claim as supported only if every CI excludes the null
+  in the claimed direction and the Holm-adjusted p < 0.05: 17 of 23 pass. Not supported:
+  raw-variance skew, average loss > average gain, raw-variance mean post-2003, and the
+  post- vs pre-2003 difference after Holm. Read that file before quoting any v2 number.

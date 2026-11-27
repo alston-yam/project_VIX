@@ -6,6 +6,7 @@ Usage::
     python -m vrp.pipeline --stage data    # download (cached) → clean → features → sample → events
     python -m vrp.pipeline --stage figures # figures from processed data
     python -m vrp.pipeline --stage stats   # v2 statistical tests, reports, claims, figures 07–11
+    python -m vrp.pipeline --stage research  # research tests R-1…R-9, reports, figures 12–15
     python -m vrp.pipeline --refresh       # ignore the raw-data cache
 """
 
@@ -20,7 +21,18 @@ from pathlib import Path
 
 import pandas as pd
 
-from vrp import clean, events, features, plots, sampling, stats, stats_report, validate
+from vrp import (
+    clean,
+    events,
+    features,
+    plots,
+    research,
+    research_report,
+    sampling,
+    stats,
+    stats_report,
+    validate,
+)
 from vrp.config import Config, load_config
 from vrp.download import download_all, read_meta, sha256_file
 from vrp.logging_setup import get_logger, setup_logging
@@ -284,10 +296,73 @@ def run_stats(cfg: Config) -> None:
     )
 
 
+def _update_manifest(cfg: Config, entries: list[dict[str, object]], key: str, info: dict) -> None:
+    """Add file entries (replacing older ones for the same paths) and a stage section."""
+    man_path = cfg.path("reports") / "manifest.json"
+    manifest = json.loads(man_path.read_text(encoding="utf-8")) if man_path.exists() else {}
+    new_paths = {e["path"] for e in entries}
+    manifest["files"] = [
+        f for f in manifest.get("files", []) if f["path"] not in new_paths
+    ] + entries
+    manifest[key] = {
+        "generated_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+        "git": git_info(cfg.root),
+        **info,
+    }
+    man_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
+def run_research(cfg: Config) -> None:
+    """Research section: tests R-1…R-9, tables, summary, claims and figures 12–15."""
+    panel = read_processed(cfg, "daily_panel")
+    monthly = read_processed(cfg, "monthly_sample")
+    ev = pd.read_csv(cfg.path("processed") / "events.csv", parse_dates=["start_date", "end_date"])
+    res = research.run_research(panel, monthly, cfg)
+    out = cfg["research"]["outputs"]
+    reports = cfg.path("reports")
+    reports.mkdir(parents=True, exist_ok=True)
+
+    rv_path = write_csv(res.rv_monthly, cfg.path("processed") / out["rv_monthly"])
+    yr_path = write_csv(res.rv_year, reports / out["rv_by_year"], index_label="year")
+    tables_path = write_csv(res.tables, reports / out["tables"], index_label=None)
+    roll_path = write_csv(res.rolling, reports / out["rolling"])
+    claims = research_report.evaluate_research_claims(res)
+    claims_csv = write_csv(claims, reports / out["claims"].replace(".md", ".csv"), index_label=None)
+    research_report.write_research_summary(res, claims, reports / out["summary"])
+    research_report.write_research_claims(res, claims, reports / out["claims"])
+    figs = plots.make_research_figures(res, monthly, ev, claims, cfg)
+
+    _update_manifest(
+        cfg,
+        [
+            file_entry(rv_path, res.rv_monthly, cfg),
+            file_entry(yr_path, res.rv_year, cfg),
+            file_entry(tables_path, res.tables, cfg),
+            file_entry(roll_path, res.rolling, cfg),
+            file_entry(claims_csv, claims, cfg),
+        ],
+        "research",
+        {
+            "settings": {k: v for k, v in cfg["research"].items() if k != "outputs"},
+            "claims_supported": int(claims["supported"].sum()),
+            "claims_total": int(len(claims)),
+        },
+    )
+    log.info(
+        "research stage finished: %d result rows, %d/%d claims supported, %d figure files",
+        len(res.tables),
+        int(claims["supported"].sum()),
+        len(claims),
+        len(figs),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("--stage", choices=["all", "data", "figures", "stats"], default="all")
+    ap.add_argument(
+        "--stage", choices=["all", "data", "figures", "stats", "research"], default="all"
+    )
     ap.add_argument("--refresh", action="store_true", help="re-download raw data")
     ap.add_argument("--config", default=None, help="path to config.yaml")
     args = ap.parse_args(argv)
@@ -302,6 +377,8 @@ def main(argv: list[str] | None = None) -> int:
         run_figures(cfg)
     if args.stage in ("all", "stats"):
         run_stats(cfg)
+    if args.stage in ("all", "research"):
+        run_research(cfg)
     log.info("pipeline done")
     return 0
 

@@ -38,6 +38,7 @@ make all        # download (cached) → clean → features → sample → events
 | `make data` | data stage: `python -m vrp.pipeline --stage data` |
 | `make refresh` | data stage with fresh downloads (`--refresh`) |
 | `make figures` | figures from processed data |
+| `make stats` / `make research` | v2 tests / research section (figures 12–15) |
 | `make test` | `pytest` (must pass before any commit) |
 | `make lint` / `make format` | black + ruff check / fix (line length 100) |
 | `make clean` | delete raw/interim data, logs and caches |
@@ -62,6 +63,8 @@ src/vrp/
   plots.py               shared style (COLORS, STYLE), footnote(), shade_events(), save() → PNG+SVG; v2 figures 07–11
   stats.py               v2 tests: mean_nw(), Bootstrapper, test_mean/shape/crash/forecast/robustness(), require_known_at_t()
   stats_report.py        v2 stats_summary.md + pitch_claims.md (claim rule: CI direction + Holm)
+  research.py            research: calendar-month RV dynamics, premium by known-at-t buckets, time trend
+  research_report.py     research_summary.md + research_claims.md (pre-registered R-1…R-9, own Holm family)
   pipeline.py            orchestrates stages; read_processed(cfg, name); write_csv(); manifest.json
 tests/                   conftest.py (synthetic panel builders + real-data fixtures), test_alignment/features/clean/stats
 notebooks/               loads processed data and calls src/; no logic of its own
@@ -196,3 +199,9 @@ helpers), a `--stage deck` stage, and write to `outputs/figures/deck/`.
   supported: raw-variance skew (bootstrap CI reaches 0), average loss > average gain,
   raw-variance mean post-2003 (NW p ≈ 0.08), and the post- vs pre-2003 difference after Holm.
   Read the claims file before quoting any v2 number.
+- **Research (`make research`, branch `research`):** tests pre-registered in
+  `docs/research_plan.md` (R-1 … R-9, their own Holm family). Read
+  `outputs/reports/research_claims.md` before quoting any research number. Teammates' brief
+  and the model → strategy handoff file (`rv_forecast.csv`, `rv_hat_ann_var`) are in
+  `docs/team_brief.md`.
+

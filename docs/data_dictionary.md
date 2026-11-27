@@ -116,6 +116,40 @@ an outcome.
 `p_max` (largest p behind the claim), `ci_ok`, `p_holm`, `supported`, `reasons`, `evidence`,
 `caveat`, `fallback`). Rendered as `pitch_claims.md`.
 
+## `data/processed/rv_calendar_month.csv` (research, realised-vol dynamics)
+
+One row per **calendar month** of the sample (432 rows, 1990-01 to 2025-12), indexed by the
+first day of the month. Non-overlapping, unlike the 21-day forward windows of
+`monthly_sample.csv`. Describes the past: it is used only to study how realised volatility
+behaves over time, never as a predictor of a same-month outcome.
+
+| Column | Unit | Meaning | Known at t? |
+|---|---|---|---|
+| `date` | date | First calendar day of the month (index) | n/a (label) |
+| `n_days` | count | Panel trading days in the month with a return | yes, at month end |
+| `rv_cal_ann_var` | annualised variance | (252 / `n_days`) · Σ r² over the month's trading days | yes, at the month's last close |
+| `rv_cal_ann_vol_pct` | vol points | 100 · √`rv_cal_ann_var` | yes, at the month's last close |
+
+## Research outputs (`outputs/reports/`)
+
+`research_tables.csv`: same columns as `stats_tables.csv`. `test` is `R_dynamics`
+(calendar-month log realised variance: AR(1), ADF, trend, change skewness), `R_conditional`
+(seller payoff by **known-at-t** buckets of `vix_close` and of the gap VIX − 100·√`rv_past21_ann_var`)
+or `R_time` (linear trend in the payoff). Conditioning variables are known at the close of t;
+the payoffs being described are outcomes.
+
+`research_rv_by_year.csv`: one row per calendar year: `n_days`, `rv_ann_vol_pct` (all daily
+returns in the year), `vol_of_vol_log` (std of the 12 monthly log realised variances),
+`max_month_vol_pct`, `min_month_vol_pct`, `rank_irregular` (1 = highest vol-of-vol). Descriptive.
+
+`research_rolling_premium.csv`: rolling mean of `payoff_scaled` over `window_months` months,
+indexed by the window's last month, with a Newey–West 95% band (`ci_low`, `ci_high`). Windows
+overlap; chart only. Uses outcomes (payoffs), so it describes the past.
+
+`research_claims.csv`: as `pitch_claims.csv`, for the nine pre-registered research claims
+R-1 … R-9 (own Holm family). Rendered as `research_claims.md`; full tables in
+`research_summary.md`.
+
 ## Interim files (`data/interim/`, not committed)
 
 | File | Columns |

@@ -1,8 +1,8 @@
 {
-  "generated_utc": "2026-11-22T11:37:06+00:00",
+  "generated_utc": "2026-11-27T00:06:57+00:00",
   "git": {
-    "commit": "4f4db9def1ecbcc2f1a6b7db050205ceff9f2eeb",
-    "code_dirty": false
+    "commit": "341386d8f21a063774d2a7d2b4a1b80b3d567c1f",
+    "code_dirty": true
   },
   "config": {
     "window": 21,
@@ -166,6 +166,89 @@
       "sha256": "5a49d0725e091ccc34c266bd33650f9afd98e10e68c4cc4192b6277ba1cde25f"
     },
     {
+      "path": "data/processed/rv_calendar_month.csv",
+      "rows": 432,
+      "columns": [
+        "n_days",
+        "rv_cal_ann_var",
+        "rv_cal_ann_vol_pct"
+      ],
+      "first_date": "1990-01-01",
+      "last_date": "2025-12-01",
+      "sha256": "9ae2bb4a43faabdc9ccf228e82e5f5c8c2b2aeab338c93b01a7221f3836365a1"
+    },
+    {
+      "path": "outputs/reports/research_rv_by_year.csv",
+      "rows": 36,
+      "columns": [
+        "n_days",
+        "rv_ann_vol_pct",
+        "vol_of_vol_log",
+        "max_month_vol_pct",
+        "min_month_vol_pct",
+        "rank_irregular"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "688c956c768adc422accc01ea21c3e2ea80c8d24f9d3b270d7363650fb9b472b"
+    },
+    {
+      "path": "outputs/reports/research_tables.csv",
+      "rows": 42,
+      "columns": [
+        "test",
+        "measure",
+        "sample",
+        "statistic",
+        "estimate",
+        "ci_low",
+        "ci_high",
+        "ci_method",
+        "null_value",
+        "test_name",
+        "p_value",
+        "n",
+        "note"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "dffadd0288c8ea7ff8bba7c0acf6a06251b741b6effccf7ee5beab6f11ebfd6b"
+    },
+    {
+      "path": "outputs/reports/research_rolling_premium.csv",
+      "rows": 373,
+      "columns": [
+        "mean",
+        "ci_low",
+        "ci_high",
+        "measure",
+        "window_months"
+      ],
+      "first_date": "1994-12-01",
+      "last_date": "2025-12-01",
+      "sha256": "66d2d7f5693c3197dc0f41ccc325b99b254129f2933ea0ed7c36071e38a0a3b4"
+    },
+    {
+      "path": "outputs/reports/research_claims.csv",
+      "rows": 9,
+      "columns": [
+        "id",
+        "test",
+        "claim",
+        "p_max",
+        "ci_ok",
+        "reasons",
+        "evidence",
+        "caveat",
+        "fallback",
+        "p_holm",
+        "supported"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "5487ffca38abd8a6f09712eb9c8e6cf524c7bd8f6af800c7db56162837f7634a"
+    },
+    {
       "path": "data/processed/monthly_variants.csv",
       "rows": 432,
       "columns": [
@@ -251,10 +334,10 @@
     }
   ],
   "stats": {
-    "generated_utc": "2026-11-22T11:37:30+00:00",
+    "generated_utc": "2026-11-27T00:08:27+00:00",
     "git": {
-      "commit": "4f4db9def1ecbcc2f1a6b7db050205ceff9f2eeb",
-      "code_dirty": false
+      "commit": "341386d8f21a063774d2a7d2b4a1b80b3d567c1f",
+      "code_dirty": true
     },
     "settings": {
       "alpha": 0.05,
@@ -289,5 +372,28 @@
     },
     "claims_supported": 17,
     "claims_total": 23
+  },
+  "research": {
+    "generated_utc": "2026-11-27T00:08:14+00:00",
+    "git": {
+      "commit": "341386d8f21a063774d2a7d2b4a1b80b3d567c1f",
+      "code_dirty": true
+    },
+    "settings": {
+      "ar_nw_lags": 6,
+      "trend_nw_lags": 12,
+      "adf_autolag": "AIC",
+      "vix_thresholds": [
+        15,
+        25
+      ],
+      "gap_thresholds": [
+        0,
+        5
+      ],
+      "rolling_window_months": 60
+    },
+    "claims_supported": 2,
+    "claims_total": 9
   }
 }

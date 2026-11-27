@@ -51,6 +51,7 @@ STYLE = {
     "font.size": 10,
     "lines.linewidth": 1.6,
     "svg.fonttype": "none",
+    "svg.hashsalt": "vrp",  # deterministic SVG element ids, so rebuilds do not churn git diffs
 }
 
 
@@ -686,4 +687,246 @@ def make_stats_figures(monthly: pd.DataFrame, res: object, cfg: Config) -> list[
     paths += fig_test3_selloff(monthly, res.deciles["payoff_scaled"], t, cfg)  # type: ignore
     paths += fig_test4_mz(monthly, res.mz_line, t, cfg)  # type: ignore[attr-defined]
     paths += fig_test5_robustness(t, cfg)
+    return paths
+
+
+# ====================================================================== research figures
+def _foot_wrapped(fig: plt.Figure, text: str) -> None:
+    """Footnote wrapped to the figure width, so long notes do not widen the saved image."""
+    import textwrap
+
+    width = int(fig.get_figwidth() * 15)
+    footnote(fig, "\n".join(textwrap.wrap(text, width)))
+
+
+def _get(tables: pd.DataFrame, test: str, measure: str, stat: str, sample: str = "") -> pd.Series:
+    m = (tables["test"] == test) & (tables["measure"] == measure) & (tables["statistic"] == stat)
+    if sample:
+        m &= tables["sample"] == sample
+    return tables[m].iloc[0]
+
+
+def fig_rv_dynamics(res: object, events: pd.DataFrame, cfg: Config) -> list[Path]:
+    """12: calendar-month realised vol with its fitted trend; autocorrelation of log RV."""
+    rvm = res.rv_monthly  # type: ignore[attr-defined]
+    t = res.tables  # type: ignore[attr-defined]
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(14, 5.2), gridspec_kw={"width_ratios": [2.2, 1]})
+    vol = rvm["rv_cal_ann_vol_pct"]
+    ax.plot(vol.index, vol, color=COLORS["realised"], lw=1.1, label="Realised vol, calendar month")
+    tr = _get(t, "R_dynamics", "log_rv_cal", "trend_slope_per_year")
+    yrs = np.asarray((vol.index - vol.index[0]).days / 365.25)
+    lv = np.log(rvm["rv_cal_ann_var"].to_numpy(float))
+    icpt = float(lv.mean() - tr["estimate"] * yrs.mean())
+    ax.plot(
+        vol.index,
+        100 * np.sqrt(np.exp(icpt + tr["estimate"] * yrs)),
+        color=COLORS["ink"],
+        ls="--",
+        lw=1.2,
+        label=f"Fitted log-linear trend (p = {tr['p_value']:.2f})",
+    )
+    ax.set_yscale("log")
+    ax.yaxis.set_major_locator(FixedLocator([5, 10, 20, 40, 80]))
+    ax.yaxis.set_minor_formatter(NullFormatter())
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    headroom(ax, float(vol.max()), cfg["plots"]["headroom"], log_scale=True)
+    shade_events(ax, events, cfg["plots"]["shade_events"])
+    ax.set_ylabel("Annualised realised volatility (%, log scale)")
+    ax.set_xlabel("Calendar month")
+    ax.set_title("Realised volatility spikes and fades; no long-run trend in the fit", fontsize=11)
+    ax.legend(loc="lower left", fontsize=8.5)
+    _date_axis(ax)
+
+    n = len(lv)
+    lags = np.arange(1, 25)
+    acf = [float(pd.Series(lv).autocorr(k)) for k in lags]
+    ax2.set_axisbelow(True)
+    ax2.bar(lags, acf, color=COLORS["implied"], width=0.7)
+    band = 1.96 / np.sqrt(n)
+    ax2.axhspan(-band, band, color=COLORS["grid"], alpha=0.8, zorder=0)
+    ar = _get(t, "R_dynamics", "log_rv_cal", "ar1_rho")
+    hl = _get(t, "R_dynamics", "log_rv_cal", "half_life_months")
+    ax2.text(
+        0.97,
+        0.95,
+        f"AR(1) ρ = {ar['estimate']:.2f} [{ar['ci_low']:.2f}, {ar['ci_high']:.2f}]\n"
+        f"half-life ≈ {hl['estimate']:.1f} months",
+        transform=ax2.transAxes,
+        ha="right",
+        va="top",
+        fontsize=9,
+    )
+    ax2.set_xlabel("Lag (months)")
+    ax2.set_ylabel("Autocorrelation of log realised variance")
+    ax2.set_title("Vol clusters, but the memory is short", fontsize=11)
+    ax2.set_ylim(-0.1, 1)
+    fig.suptitle("Realised-volatility dynamics, 1990–2025", fontweight="bold", fontsize=13)
+    fig.tight_layout()
+    _foot_wrapped(
+        fig,
+        cfg["plots"]["source_note"] + ". Calendar-month realised variance = (252/n)·Σ r² over "
+        "the month's trading days. Trend: OLS of log RV on time, Newey–West "
+        f"{cfg['research']['trend_nw_lags']} lags. Grey band: ±1.96/√n.",
+    )
+    return save(fig, "12_rv_dynamics", cfg)
+
+
+def fig_rv_by_year(res: object, cfg: Config, n_highlight: int = 5) -> list[Path]:
+    """13: realised vol and vol-of-vol by calendar year; most irregular years highlighted."""
+    yr = res.rv_year  # type: ignore[attr-defined]
+    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(12, 6.6), sharex=True)
+    top = yr["rank_irregular"] <= n_highlight
+    ax.set_axisbelow(True)
+    ax2.set_axisbelow(True)
+    ax.bar(yr.index, yr["rv_ann_vol_pct"], color=COLORS["realised"], width=0.75)
+    ax.set_ylabel("Realised vol (%)")
+    ax.set_title("Annual realised volatility of the S&P 500", fontsize=11)
+    ax2.bar(
+        yr.index,
+        yr["vol_of_vol_log"],
+        color=np.where(top, COLORS["loss"], COLORS["ink2"]),
+        width=0.75,
+    )
+    for y, v in yr.loc[top, "vol_of_vol_log"].items():
+        ax2.text(y, v, f"{y}", ha="center", va="bottom", fontsize=8, color=COLORS["loss"])
+    ax2.set_ylabel("Vol-of-vol (std of monthly log RV)")
+    ax2.set_xlabel("Calendar year")
+    ax2.set_title(
+        f"How irregular each year was (red: the {n_highlight} most irregular)", fontsize=11
+    )
+    ax2.set_ylim(0, float(yr["vol_of_vol_log"].max()) * 1.15)
+    fig.suptitle("Which years were most irregular?", fontweight="bold", fontsize=13)
+    fig.tight_layout()
+    _foot_wrapped(
+        fig,
+        cfg["plots"]["source_note"] + ". Annual vol from all daily log returns in the year; "
+        "vol-of-vol = standard deviation of the 12 calendar-month log realised variances.",
+    )
+    return save(fig, "13_rv_by_year", cfg)
+
+
+def fig_conditional_premium(res: object, cfg: Config) -> list[Path]:
+    """14: mean scaled payoff (Newey–West 95% CI) by VIX level and by VIX − past RV at t."""
+    t = res.tables  # type: ignore[attr-defined]
+    c = t[(t["test"] == "R_conditional") & (t["measure"] == "payoff_scaled")]
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.0), sharey=True)
+    panels = [
+        ("VIX", "VIX level at the close of t"),
+        ("gap", "VIX − past 21-day realised vol at t (vol pts)"),
+    ]
+    for ax, (key, xlabel) in zip(axes, panels, strict=True):
+        means = c[(c["statistic"] == "mean") & c["sample"].str.contains(key, regex=False)]
+        means = means[~means["sample"].str.contains("minus")]
+        wins = c[c["statistic"] == "win_rate"].set_index("sample")["estimate"]
+        x = np.arange(len(means))
+        cols = [
+            _sig_color(lo, hi, 0.0)
+            for lo, hi in zip(means["ci_low"], means["ci_high"], strict=True)
+        ]
+        ax.set_axisbelow(True)
+        ax.bar(x, means["estimate"], color=cols, width=0.6, alpha=0.85)
+        ax.errorbar(
+            x,
+            means["estimate"],
+            yerr=[means["estimate"] - means["ci_low"], means["ci_high"] - means["estimate"]],
+            fmt="none",
+            ecolor=COLORS["ink"],
+            capsize=5,
+            lw=1.2,
+        )
+        for xi, r in zip(x, means.itertuples(), strict=True):
+            ax.text(
+                xi,
+                -0.06,
+                f"n = {int(r.n)}\nwins {100 * wins[r.sample]:.0f}%",
+                ha="center",
+                va="top",
+                fontsize=8.5,
+                color=COLORS["ink2"],
+            )
+        ax.set_xticks(x)
+        ax.set_xticklabels(means["sample"])
+        ax.axhline(0, color=COLORS["ink2"], lw=0.9)
+        d = c[(c["statistic"] == "diff_mean_high_minus_low") & c["sample"].str.contains(key)]
+        d = d.iloc[0]
+        ax.set_title(
+            f"High − low: {100 * d['estimate']:+.1f}% [{100 * d['ci_low']:+.1f}, "
+            f"{100 * d['ci_high']:+.1f}], bootstrap p = {d['p_value']:.2f}",
+            fontsize=10,
+        )
+        ax.set_xlabel(xlabel)
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{100 * v:.0f}%"))
+    axes[0].set_ylabel("Mean scaled seller payoff (% of implied variance)")
+    axes[0].set_ylim(-0.25, None)
+    fig.suptitle(
+        "When is the VIX most pessimistic? Seller payoff by conditions known at t",
+        fontweight="bold",
+        fontsize=13,
+    )
+    fig.tight_layout()
+    _foot_wrapped(
+        fig,
+        cfg["plots"]["source_note"] + f". {SIGN_FOOT} Monthly 1990–2025. Bars: mean with "
+        f"Newey–West 95% CI (blue = excludes 0). Fixed thresholds from config. In-sample "
+        "description, not a trading rule.",
+    )
+    return save(fig, "14_conditional_premium", cfg)
+
+
+def fig_rolling_premium(
+    res: object, monthly: pd.DataFrame, events: pd.DataFrame, claims: pd.DataFrame, cfg: Config
+) -> list[Path]:
+    """15: rolling mean of the scaled payoff with a Newey–West band and the linear trend."""
+    roll = res.rolling  # type: ignore[attr-defined]
+    t = res.tables  # type: ignore[attr-defined]
+    w = int(roll["window_months"].iloc[0])
+    fig, ax = plt.subplots(figsize=(12, 5.4))
+    ax.fill_between(
+        roll.index, roll["ci_low"], roll["ci_high"], color=COLORS["implied"], alpha=0.18, lw=0
+    )
+    ax.plot(roll.index, roll["mean"], color=COLORS["implied"], label=f"Rolling {w}-month mean")
+    full = float(monthly["payoff_scaled"].mean())
+    ax.axhline(full, color=COLORS["ink2"], ls=":", lw=1.2, label=f"Full-sample mean {full:.0%}")
+    tr = _get(t, "R_time", "payoff_scaled", "trend_slope_per_year")
+    yrs = np.asarray((monthly.index - monthly.index[0]).days / 365.25)
+    icpt = float(monthly["payoff_scaled"].mean() - tr["estimate"] * yrs.mean())
+    p_holm = float(claims.set_index("id").loc["R-9", "p_holm"])
+    ax.plot(
+        monthly.index,
+        icpt + tr["estimate"] * yrs,
+        color=COLORS["ink"],
+        ls="--",
+        lw=1.1,
+        label=f"Linear trend, all months ({100 * tr['estimate']:+.2f}%/yr; "
+        f"p = {tr['p_value']:.3f}, Holm-adjusted p = {p_holm:.3f})",
+    )
+    ax.axhline(0, color=COLORS["ink2"], lw=0.8)
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{100 * v:.0f}%"))
+    ax.set_xlim(roll.index[0], roll.index[-1])
+    headroom(ax, float(roll["ci_high"].max()), cfg["plots"]["headroom"])
+    shade_events(ax, events, cfg["plots"]["shade_events"])
+    ax.set_ylabel("Scaled seller payoff (% of implied variance)")
+    ax.set_xlabel("Month (end of rolling window)")
+    ax.set_title("Is the variance risk premium changing over time?", pad=42)
+    ax.legend(loc="lower left", bbox_to_anchor=(0.0, 1.0), ncol=2, fontsize=8.5)
+    _date_axis(ax)
+    _foot_wrapped(
+        fig,
+        cfg["plots"]["source_note"] + f". {SIGN_FOOT} Band: Newey–West "
+        f"{cfg['stats']['nw_lags_monthly']}-lag 95% CI of each window's mean (windows overlap, so "
+        "the band is not a test). The trend test is in research_claims.md (R-9).",
+    )
+    return save(fig, "15_rolling_premium", cfg)
+
+
+def make_research_figures(
+    res: object, monthly: pd.DataFrame, events: pd.DataFrame, claims: pd.DataFrame, cfg: Config
+) -> list[Path]:
+    """Draw research figures 12–15 from a ``vrp.research.ResearchResults``."""
+    apply_style()
+    paths: list[Path] = []
+    paths += fig_rv_dynamics(res, events, cfg)
+    paths += fig_rv_by_year(res, cfg)
+    paths += fig_conditional_premium(res, cfg)
+    paths += fig_rolling_premium(res, monthly, events, claims, cfg)
     return paths

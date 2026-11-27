@@ -384,12 +384,23 @@ def _find(tables: pd.DataFrame, e: Evidence) -> pd.Series:
 
 
 def evaluate_claims(res: StatsResults) -> pd.DataFrame:
-    """Check every candidate claim against the evidence; Holm-adjust across claims."""
+    """Check every candidate v2 claim against the evidence; Holm-adjust across claims."""
     s = res.settings
     specs = claim_specs(s.n_exclude_worst, s.robustness_window, s.worst_decile, s.best_decile)
+    ids = [f"C{i}" for i in range(1, len(specs) + 1)]
+    return evaluate_specs(specs, res.tables, ids, s.alpha, 1 / (s.n_boot + 1))
+
+
+def evaluate_specs(
+    specs: list[ClaimSpec], tables: pd.DataFrame, ids: list[str], alpha: float, floor: float
+) -> pd.DataFrame:
+    """Check claims against result rows; one Holm family across ``specs``.
+
+    ``ids`` are the displayed claim IDs; ``floor`` is the resampling p-value floor.
+    """
     out = []
-    for i, c in enumerate(specs, start=1):
-        rows = [_find(res.tables, e) for e in c.evidence]
+    for cid, c in zip(ids, specs, strict=True):
+        rows = [_find(tables, e) for e in c.evidence]
         ok_dir, reasons, failed = True, [], []
         for r in rows:
             est, lo, hi, null = r["estimate"], r["ci_low"], r["ci_high"], r["null_value"]
@@ -414,7 +425,7 @@ def evaluate_claims(res: StatsResults) -> pd.DataFrame:
         )
         out.append(
             {
-                "id": f"C{i}",
+                "id": cid,
                 "test": c.test,
                 "claim": text,
                 "p_max": p,
@@ -428,7 +439,7 @@ def evaluate_claims(res: StatsResults) -> pd.DataFrame:
                         else ""
                     )
                     + f", {r['test_name']}, p = "
-                    + p_text(r["p_value"], r["test_name"], 1 / (s.n_boot + 1))
+                    + p_text(r["p_value"], r["test_name"], floor)
                     for r in rows
                 ),
                 "caveat": c.caveat,
@@ -438,11 +449,11 @@ def evaluate_claims(res: StatsResults) -> pd.DataFrame:
             }
         )
     df = pd.DataFrame(out)
-    df["p_holm"] = holm(df["p_max"].tolist(), s.alpha)
-    df["supported"] = df["ci_ok"] & (df["p_holm"] < s.alpha)
+    df["p_holm"] = holm(df["p_max"].tolist(), alpha)
+    df["supported"] = df["ci_ok"] & (df["p_holm"] < alpha)
     for i, r in df.iterrows():
         if not r["supported"] and r["ci_ok"]:
-            df.at[i, "reasons"] = f"Holm-adjusted p = {r['p_holm']:.3g} ≥ {s.alpha}"
+            df.at[i, "reasons"] = f"Holm-adjusted p = {r['p_holm']:.3g} ≥ {alpha}"
     return df
 
 

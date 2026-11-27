@@ -1,4 +1,4 @@
-# Methodology (v1: data layer; v2: statistical tests)
+# Methodology (v1: data layer; v2: statistical tests; research section)
 
 This document explains, step by step, how raw downloads become the analysis-ready
 files in `data/processed/`. Read `docs/primer.md` first for the concepts. Every
@@ -275,3 +275,55 @@ with the reason and an honest alternative wording. All numbers in the file are g
 23. **Demeaned RV** uses ddof = 1 and ×252 (not ×252/(H−1)), fixing the primer-noted bug.
 24. **VXO** comparisons use S&P 100 implied variance against S&P 500 realised variance, so they
     test the sign of the premium, not its exact size.
+
+## 10. Research section (`research.py`, `research_report.py`)
+
+`make research` (`--stage research`) answers the research questions in
+[`research_plan.md`](research_plan.md), where the nine tests (R-1 … R-9), their nulls and their
+claimed directions were fixed **before** the results were read.
+
+### 10.1 What is computed
+
+- **A. Realised-vol dynamics** on a new series, **calendar-month realised variance**
+  (`rv_calendar_month.csv`), in logs: AR(1) coefficient with Newey–West SE and half-life (R-1),
+  augmented Dickey–Fuller test for mean reversion (R-2), linear time trend with Newey–West SE
+  (R-3), skewness of month-to-month changes with the block bootstrap (R-4). Per-year realised
+  vol and vol-of-vol ("which years were most irregular?") are descriptive.
+- **B. Premium by conditions known at t**: mean `payoff_var` and `payoff_scaled` in fixed
+  buckets of the VIX level and of the gap VIX − past 21-day realised vol; high − low
+  differences by block bootstrap (R-5 … R-8).
+- **C. Time variation**: linear trend in `payoff_scaled` with Newey–West SE (R-9), and a
+  60-month rolling mean (chart only).
+
+Outputs: `research_tables.csv`, `research_summary.md`, `research_claims.md`/`.csv`,
+`research_rv_by_year.csv`, `research_rolling_premium.csv`; figures 12–15.
+
+### 10.2 No look-ahead in the research section
+
+Section B conditions on `vix_close` and `rv_past21_ann_var` only, both known at the close of t
+(enforced by `require_known_at_t`), with thresholds fixed in `config.yaml` rather than sample
+quantiles, which would use the whole sample. Results are **in-sample descriptions**, not an
+out-of-sample trading rule. Sections A and C describe the past and make no forecast.
+
+### 10.3 Decisions & assumptions (research)
+
+25. **Calendar-month RV for dynamics.** The 21-day forward windows of the monthly sample overlap
+    or leave gaps between consecutive months, which would distort autocorrelations. Calendar
+    months do not overlap; their length varies (15–23 trading days), so each month's sum of
+    squared returns is annualised by its own day count.
+26. **Separate Holm family.** The research claims are corrected among themselves (9 claims),
+    not added to the 23 v2 claims, so the v2 verdicts are unchanged. A reader who wants one
+    family of all 32 claims can apply Bonferroni (raw p × 32), which is stricter than Holm;
+    the two supported research claims (R-1, R-2) still pass at that level (raw p ≤ 0.0001).
+27. **Trend tests are linear.** A linear trend through spiky, persistent data is a blunt tool;
+    R-3 uses 12 Newey–West lags because log RV is persistent, and the ADF result (R-2) shows
+    the series is mean-reverting, so a trend regression is not spurious.
+28. **Bucket means use Newey–West within the bucket**, although the bucket's months are not
+    consecutive; treat those CIs as approximate. The pre-registered tests are the high − low
+    differences, which use the block bootstrap on the full series.
+29. **Exploratory look.** Bucket means by VIX tercile were looked at once before the
+    thresholds were fixed; the directions in R-5 and R-6 are the ones expected from
+    economics (see `research_plan.md`, "Changes").
+30. **Structural-break test dropped** (26 Nov 2026) for time; the pre/post-2003 comparison
+    (v2) and the linear trend (R-9) remain.
+

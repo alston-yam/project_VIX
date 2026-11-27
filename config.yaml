@@ -123,3 +123,23 @@ stats:
     tables: "stats_tables.csv"         # written to paths.reports
     summary: "stats_summary.md"
     claims: "pitch_claims.md"
+
+# ---------------------------------------------------------------------------
+# Research section: realised-vol dynamics, premium by known-at-t conditions, time variation
+# (src/vrp/research.py, `make research`). Tests are pre-registered in docs/research_plan.md.
+# ---------------------------------------------------------------------------
+research:
+  ar_nw_lags: 6                  # Newey–West lags for the AR(1) of monthly log RV
+  trend_nw_lags: 12              # log RV is very persistent, so more lags for its trend test
+  adf_autolag: "AIC"             # lag selection for the augmented Dickey–Fuller test
+  # Fixed bucket thresholds (known in advance, not sample quantiles, so no look-ahead).
+  vix_thresholds: [15, 25]       # VIX level at t (vol points): <=15 / 15–25 / >25
+  gap_thresholds: [0, 5]         # VIX − past 21-day realised vol at t (vol points)
+  rolling_window_months: 60      # rolling mean of the scaled premium (chart only)
+  outputs:
+    rv_monthly: "rv_calendar_month.csv"   # written to paths.processed
+    rv_by_year: "research_rv_by_year.csv" # written to paths.reports
+    tables: "research_tables.csv"
+    rolling: "research_rolling_premium.csv"
+    summary: "research_summary.md"
+    claims: "research_claims.md"

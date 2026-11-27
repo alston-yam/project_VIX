@@ -1,15 +1,15 @@
-# VRP S&P 500 - v1 data layer + v2 statistical tests.
+# VRP S&P 500 - v1 data layer + v2 statistical tests + research section.
 # Run `make all` from a fresh clone (after `pip install -r requirements.txt`).
 
 PYTHON ?= python
 export PYTHONPATH := src
 
-.PHONY: all data refresh figures stats test lint format clean help
+.PHONY: all data refresh figures stats research test lint format clean help
 
 help:  ## Show available targets
 	@grep -E '^[a-z]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
 
-all: data figures stats test  ## Build data, figures, statistical tests, then run tests
+all: data figures stats research test  ## Build data, figures, tests, research, then run tests
 
 data:  ## Download (cached), clean, build features, sample, events, validate
 	$(PYTHON) -m vrp.pipeline --stage data
@@ -22,6 +22,9 @@ figures:  ## Draw all figures from processed data
 
 stats:  ## v2 statistical tests: tables, summary, pitch claims, figures 07–11
 	$(PYTHON) -m vrp.pipeline --stage stats
+
+research:  ## Research section: tests R-1…R-9, reports, research claims, figures 12–15
+	$(PYTHON) -m vrp.pipeline --stage research
 
 test:  ## Run the test suite
 	$(PYTHON) -m pytest -q

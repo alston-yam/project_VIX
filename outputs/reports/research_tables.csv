@@ -1,0 +1,43 @@
+test,measure,sample,statistic,estimate,ci_low,ci_high,ci_method,null_value,test_name,p_value,n,note
+R_dynamics,log_rv_cal,calendar months 1990–2025,ar1_rho,0.6738760066050065,0.5815821607390941,0.7661698524709188,Newey–West (6 lags),0.0,"HAC z, z = 14.31",1.8810813102811928e-46,431,half-life 1.76 months
+R_dynamics,log_rv_cal,calendar months 1990–2025,half_life_months,1.7560960469362372,,,,,,,431,
+R_dynamics,log_rv_cal,calendar months 1990–2025,autocorr_lag_1,0.673499821648302,,,,,,,431,
+R_dynamics,log_rv_cal,calendar months 1990–2025,autocorr_lag_3,0.4584739255287697,,,,,,,429,
+R_dynamics,log_rv_cal,calendar months 1990–2025,autocorr_lag_6,0.3667525402490887,,,,,,,426,
+R_dynamics,log_rv_cal,calendar months 1990–2025,autocorr_lag_12,0.21276764876336138,,,,,,,420,
+R_dynamics,log_rv_cal,calendar months 1990–2025,adf_stat,-4.802631675492659,,,,,"ADF (constant, 4 lags by AIC), H0: unit root",5.37589934706699e-05,427,"critical values 1%: -3.45, 5%: -2.87, 10%: -2.57"
+R_dynamics,log_rv_cal,calendar months 1990–2025,trend_slope_per_year,0.004206724484581148,-0.01425666296804353,0.022670111937205827,Newey–West (12 lags),0.0,"HAC z, z = 0.45",0.6551920708668133,432,≈ +2.1% realised vol per decade (half the log-variance slope)
+R_dynamics,dlog_rv_cal,calendar months 1990–2025,skewness,0.3436520629955864,0.09280535870091093,0.6042400491504667,block bootstrap (6-month blocks),0.0,bootstrap,0.007999200079992,431,D'Agostino (i.i.d.) p = 0.00405
+R_dynamics,dlog_rv_cal,calendar months 1990–2025,sd,0.7785774469926633,,,,,,,431,std of month-to-month change in log realised variance
+R_dynamics,dlog_rv_cal,calendar months 1990–2025,largest_rise,2.81507306699584,,,,,,,431,into 2018-10
+R_dynamics,dlog_rv_cal,calendar months 1990–2025,largest_fall,-2.7875933645853745,,,,,,,431,into 2014-11
+R_conditional,payoff_var,VIX ≤ 15,mean,0.005292256774000035,0.0033959175065205846,0.007188596041479485,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 5.47",4.50495245632057e-08,137,median 0.007015; win rate 0.810
+R_conditional,payoff_var,VIX ≤ 15,win_rate,0.8102189781021898,,,,,,,137,
+R_conditional,payoff_var,15 < VIX ≤ 25,mean,0.011840304351294708,0.008298597324903439,0.015382011377685977,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 6.55",5.663152434693024e-11,220,median 0.01669; win rate 0.864
+R_conditional,payoff_var,15 < VIX ≤ 25,win_rate,0.8636363636363636,,,,,,,220,
+R_conditional,payoff_var,VIX > 25,mean,0.019675257167158684,-0.004190085741330802,0.04354060007564817,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 1.62",0.10612691947073533,75,median 0.03859; win rate 0.813
+R_conditional,payoff_var,VIX > 25,win_rate,0.8133333333333334,,,,,,,75,
+R_conditional,payoff_var,VIX > 25 minus VIX ≤ 15,diff_mean_high_minus_low,0.014383000393158655,-0.015583550687628353,0.03654803235484698,block bootstrap (6-month blocks),0.0,bootstrap,0.27187281271872815,212,"Welch t = 0.96, p = 0.34"
+R_conditional,payoff_scaled,VIX ≤ 15,mean,0.3151208536313109,0.19808105132640902,0.43216065593621283,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 5.28",1.312761895990776e-07,137,median 0.4804; win rate 0.810
+R_conditional,payoff_scaled,VIX ≤ 15,win_rate,0.8102189781021898,,,,,,,137,
+R_conditional,payoff_scaled,15 < VIX ≤ 25,mean,0.33016588740440467,0.24349334379225984,0.4168384310165495,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 7.47",8.255323882110315e-14,220,median 0.4715; win rate 0.864
+R_conditional,payoff_scaled,15 < VIX ≤ 25,win_rate,0.8636363636363636,,,,,,,220,
+R_conditional,payoff_scaled,VIX > 25,mean,0.19026212038122065,-0.023225504843650685,0.403749745606092,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 1.75",0.08068283131430791,75,median 0.4566; win rate 0.813
+R_conditional,payoff_scaled,VIX > 25,win_rate,0.8133333333333334,,,,,,,75,
+R_conditional,payoff_scaled,VIX > 25 minus VIX ≤ 15,diff_mean_high_minus_low,-0.12485873325009034,-0.4141946954023212,0.11702998924117926,block bootstrap (6-month blocks),0.0,bootstrap,0.34936506349365065,212,"Welch t = -0.97, p = 0.336"
+R_conditional,payoff_var,gap ≤ 0 pts,mean,0.010578658748540247,-0.013950218558547113,0.03510753605562761,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 0.85",0.39795405292861996,47,median 0.01895; win rate 0.809
+R_conditional,payoff_var,gap ≤ 0 pts,win_rate,0.8085106382978723,,,,,,,47,
+R_conditional,payoff_var,0 < gap ≤ 5 pts,mean,0.004640706070493804,-0.003053219185754406,0.012334631326742014,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 1.18",0.23713365751066862,202,median 0.00993; win rate 0.847
+R_conditional,payoff_var,0 < gap ≤ 5 pts,win_rate,0.8465346534653465,,,,,,,202,
+R_conditional,payoff_var,gap > 5 pts,mean,0.01853022957861431,0.013718719756389898,0.023341739400838724,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 7.55",4.410726211746942e-14,182,median 0.01673; win rate 0.841
+R_conditional,payoff_var,gap > 5 pts,win_rate,0.8406593406593407,,,,,,,182,
+R_conditional,payoff_var,gap > 5 pts minus gap ≤ 0 pts,diff_mean_high_minus_low,0.007951570830074065,-0.01764993634233493,0.04043199464750732,block bootstrap (6-month blocks),0.0,bootstrap,0.5892410758924107,229,"Welch t = 0.50, p = 0.621"
+R_conditional,payoff_scaled,gap ≤ 0 pts,mean,0.18587916461901677,-0.000756697326564304,0.37251502656459784,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 1.95",0.05093612728426623,47,median 0.3466; win rate 0.809
+R_conditional,payoff_scaled,gap ≤ 0 pts,win_rate,0.8085106382978723,,,,,,,47,
+R_conditional,payoff_scaled,0 < gap ≤ 5 pts,mean,0.26171152469479486,0.1502810536557383,0.37314199573385143,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 4.60",4.158973799544059e-06,202,median 0.4423; win rate 0.847
+R_conditional,payoff_scaled,0 < gap ≤ 5 pts,win_rate,0.8465346534653465,,,,,,,202,
+R_conditional,payoff_scaled,gap > 5 pts,mean,0.3765303166066612,0.2892186112485664,0.463842021964756,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 8.45",2.855878167541358e-17,182,median 0.5184; win rate 0.841
+R_conditional,payoff_scaled,gap > 5 pts,win_rate,0.8406593406593407,,,,,,,182,
+R_conditional,payoff_scaled,gap > 5 pts minus gap ≤ 0 pts,diff_mean_high_minus_low,0.19065115198764432,-0.041075109084982735,0.45092923805485446,block bootstrap (6-month blocks),0.0,bootstrap,0.12918708129187081,229,"Welch t = 1.54, p = 0.128"
+R_time,payoff_var,monthly 1990–2025,trend_slope_per_year,-0.00035578830987335755,-0.0007689082185176276,5.73315987709125e-05,Newey–West (6 lags),0.0,"HAC z, z = -1.69",0.09141779587633161,432,fitted value 1990: 0.01751; 2025: 0.004735
+R_time,payoff_scaled,monthly 1990–2025,trend_slope_per_year,-0.008324068226042808,-0.014893359685892262,-0.0017547767661933548,Newey–West (6 lags),0.0,"HAC z, z = -2.48",0.01300961888246019,432,fitted value 1990: 0.4506; 2025: 0.1516

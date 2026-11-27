@@ -134,6 +134,10 @@ that change future prices and check that past values do not move.
 | `outputs/reports/stats_summary.md`, `stats_tables.csv`, `stats_deciles.csv` | v2: every test statistic with 95% CI, test and p-value |
 | `outputs/reports/pitch_claims.md` / `.csv` | v2: claims the data supports (and does not), with evidence |
 | `outputs/figures/07…11` | v2: one figure per test (means, distribution, sell-offs, Mincer–Zarnowitz, robustness) |
+| `data/processed/rv_calendar_month.csv` | research: realised variance of each calendar month |
+| `outputs/reports/research_summary.md`, `research_tables.csv`, `research_rv_by_year.csv`, `research_rolling_premium.csv` | research: vol dynamics, premium by known-at-t conditions, time variation |
+| `outputs/reports/research_claims.md` / `.csv` | research: the nine pre-registered claims (R-1 … R-9) and verdicts |
+| `outputs/figures/12…15` | research: vol dynamics, vol by year, premium by conditions at t, rolling premium |
 
 v1 sanity check (1990–2024, monthly sample): mean VIX **19.54** (benchmark ≈ 19.6), mean
 realised vol **15.34** (≈ 15.5), **432** monthly rows, highest VIX close **82.69 on 2020-03-16**.
@@ -143,4 +147,6 @@ realised vol **15.34** (≈ 15.5), **432** monthly rows, highest VIX close **82.
 - **v2: statistical tests (done).** See `outputs/reports/stats_summary.md`,
   `outputs/reports/pitch_claims.md` and `docs/methodology.md` §9. v2 needs `scipy` and
   `statsmodels`, so re-run `pip install -r requirements.txt` after pulling.
+- **Research section (in progress, branch `research`).** `make research`; plan and
+  pre-registered tests in `docs/research_plan.md`; teammates' brief in `docs/team_brief.md`.
 - **v3: deck charts.** Slide-ready versions of the figures with the v2 results.

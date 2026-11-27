@@ -1,0 +1,909 @@
+"""Pitch deck: build the research and intro slides into the OAF template (``make deck``).
+
+Every number on a slide is read from the generated result tables (``stats_tables.csv``,
+``research_tables.csv``, the claims CSVs, the sanity table), never typed in, so the deck
+rebuilds when the data or the tests change. Charts are the PNG figures in
+``outputs/figures``. Teammates' sections and step-5 results are clearly marked placeholders.
+
+Sign convention on every slide: **implied − realised** (positive = variance seller gains).
+"""
+
+from __future__ import annotations
+
+import copy
+from dataclasses import dataclass
+from pathlib import Path
+
+import pandas as pd
+from PIL import Image
+from pptx import Presentation
+from pptx.dml.color import RGBColor
+from pptx.enum.dml import MSO_LINE
+from pptx.enum.shapes import MSO_SHAPE, PP_PLACEHOLDER
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+from pptx.oxml.ns import qn
+from pptx.util import Inches, Pt
+
+from vrp import research, validate
+from vrp.config import Config
+from vrp.logging_setup import get_logger
+
+log = get_logger(__name__)
+
+# Template palette (theme accents of the OAF template).
+NAVY = RGBColor(0x1F, 0x38, 0x64)
+BLUE = RGBColor(0x2F, 0x54, 0x96)
+RED = RGBColor(0xC0, 0x00, 0x00)
+GREEN = RGBColor(0x2D, 0x77, 0x56)
+INK = RGBColor(0x26, 0x26, 0x26)
+MUTED = RGBColor(0x59, 0x59, 0x59)
+CARD = RGBColor(0xF1, 0xF4, 0xF9)
+WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+
+# Template layout indices (OAF Slide Template.pptx).
+L_TITLE, L_TOC, L_CONTENT, L_DISCLAIMER = 0, 1, 2, 8
+
+# Content area of the content layout, in inches.
+X0, X1, Y0, Y1 = 0.58, 12.78, 1.6, 6.8
+
+MINUS = "\u2212"
+NBSP = "\u00a0"
+
+
+# =========================================================================== numbers
+def pct(x: float, d: int = 1) -> str:
+    """0.301 → '30.1%' with a true minus sign."""
+    s = f"{100 * x:.{d}f}%"
+    return s.replace("-", MINUS)
+
+
+def num(x: float, d: int = 1) -> str:
+    """Number with a true minus sign."""
+    return f"{x:.{d}f}".replace("-", MINUS)
+
+
+def lab(label: str, text: str) -> list[tuple[str, bool, RGBColor]]:
+    """A bold navy lead-in followed by body text, as runs for ``_write``."""
+    return [(label, True, NAVY), (text, False, INK)]
+
+
+def ci_txt(r: pd.Series, as_pct: bool = True) -> str:
+    """'95% CI [lo, hi]' for a result row."""
+    if as_pct:
+        return f"95% CI {ci_pct(r['ci_low'], r['ci_high'])}"
+    return f"95% CI [{num(r['ci_low'])}, {num(r['ci_high'])}]"
+
+
+def ci_pct(lo: float, hi: float, d: int = 1) -> str:
+    """'[21.9%, 38.3%]'."""
+    return f"[{pct(lo, d)}, {pct(hi, d)}]"
+
+
+@dataclass
+class Numbers:
+    """Lookups into the generated result tables."""
+
+    stats: pd.DataFrame
+    research: pd.DataFrame
+    rclaims: pd.DataFrame
+    pclaims: pd.DataFrame
+    years: pd.DataFrame
+    rolling: pd.DataFrame
+    monthly: pd.DataFrame
+    sanity: pd.DataFrame
+    rs: research.ResearchSettings
+
+    def row(
+        self,
+        test: str,
+        measure: str,
+        statistic: str,
+        sample: str | None = None,
+        method: str | None = None,
+    ) -> pd.Series:
+        """Exactly one result row (stats or research tables)."""
+        t = self.research if test.startswith("R_") else self.stats
+        m = (t["test"] == test) & (t["measure"] == measure) & (t["statistic"] == statistic)
+        if sample is not None:
+            m &= t["sample"] == sample
+        if method is not None:
+            m &= t["ci_method"].fillna("").str.contains(method, regex=False)
+        hit = t[m]
+        if len(hit) != 1:
+            raise KeyError(f"{test}/{measure}/{statistic}/{sample}/{method}: {len(hit)} rows")
+        return hit.iloc[0]
+
+    def rclaim(self, cid: str) -> pd.Series:
+        """One research claim row by id (e.g. 'R-9')."""
+        return self.rclaims.set_index("id").loc[cid]
+
+
+def load_numbers(cfg: Config) -> Numbers:
+    """Read every generated table the deck quotes."""
+    from vrp.pipeline import read_processed  # local import: pipeline imports this module
+
+    rep = cfg.path("reports")
+    ro = cfg["research"]["outputs"]
+    panel = read_processed(cfg, "daily_panel")
+    monthly = read_processed(cfg, "monthly_sample")
+    return Numbers(
+        stats=pd.read_csv(rep / cfg["stats"]["outputs"]["tables"]),
+        research=pd.read_csv(rep / ro["tables"]),
+        rclaims=pd.read_csv(rep / ro["claims"].replace(".md", ".csv")),
+        pclaims=pd.read_csv(rep / "pitch_claims.csv"),
+        years=pd.read_csv(rep / ro["rv_by_year"], index_col=0),
+        rolling=pd.read_csv(rep / ro["rolling"], index_col=0, parse_dates=[0]),
+        monthly=monthly,
+        sanity=validate.sanity_table(panel, monthly, cfg),
+        rs=research.ResearchSettings.from_config(cfg),
+    )
+
+
+# =========================================================================== pptx helpers
+def _next_id(slide) -> int:
+    ids = [int(e.get("id")) for e in slide.shapes._spTree.iter() if e.tag == qn("p:cNvPr")]
+    return max(ids + [1]) + 1
+
+
+def _clear_slides(prs: Presentation) -> None:
+    """Remove the template's example slides (layouts, theme and master stay)."""
+    lst = prs.slides._sldIdLst
+    for sld in list(lst):
+        prs.part.drop_rel(sld.rId)
+        lst.remove(sld)
+
+
+def _add_footer(slide, date_text: str, footer_text: str) -> None:
+    """Copy the layout's date / footer / slide-number placeholders onto the slide."""
+    kinds = {PP_PLACEHOLDER.DATE, PP_PLACEHOLDER.FOOTER, PP_PLACEHOLDER.SLIDE_NUMBER}
+    for ph in slide.slide_layout.placeholders:
+        kind = ph.placeholder_format.type
+        if kind not in kinds:
+            continue
+        el = copy.deepcopy(ph._element)
+        el.find(qn("p:nvSpPr")).find(qn("p:cNvPr")).set("id", str(_next_id(slide)))
+        slide.shapes._spTree.append(el)
+        if kind != PP_PLACEHOLDER.SLIDE_NUMBER:
+            shape = slide.placeholders[ph.placeholder_format.idx]
+            runs = [r for p in shape.text_frame.paragraphs for r in p.runs]
+            if runs:
+                runs[0].text = date_text if kind == PP_PLACEHOLDER.DATE else footer_text
+                for r in runs[1:]:
+                    r.text = ""
+            else:
+                shape.text_frame.text = date_text if kind == PP_PLACEHOLDER.DATE else footer_text
+
+
+def _prune(slide, keep: set[int]) -> None:
+    """Delete placeholders the slide does not use (so no empty prompts remain)."""
+    for ph in list(slide.placeholders):
+        f = ph.placeholder_format
+        if f.idx not in keep and f.type not in (
+            PP_PLACEHOLDER.DATE,
+            PP_PLACEHOLDER.FOOTER,
+            PP_PLACEHOLDER.SLIDE_NUMBER,
+        ):
+            ph._element.getparent().remove(ph._element)
+
+
+def _style_run(run, size: float, bold: bool = False, color: RGBColor = INK) -> None:
+    run.font.size = Pt(size)
+    run.font.bold = bold
+    run.font.color.rgb = color
+    run.font.name = "Arial"
+
+
+def _set_bullet(p, level: int = 0, bullet: bool = True, space_before: float = 6) -> None:
+    """Paragraph indent + a real bullet character (never a literal '•' in the text)."""
+    pPr = p._p.get_or_add_pPr()
+    for tag in ("a:lnSpc", "a:spcBef", "a:spcAft", "a:buClr", "a:buChar", "a:buNone"):
+        for e in pPr.findall(qn(tag)):
+            pPr.remove(e)
+    marl = 0.22 + 0.25 * level
+    pPr.set("marL", str(Inches(marl) if bullet else 0))
+    pPr.set("indent", str(-Inches(0.2) if bullet else 0))
+    pPr.set("lvl", str(level))
+    spc = pPr.makeelement(qn("a:spcBef"), {})
+    pts = spc.makeelement(qn("a:spcPts"), {"val": str(int(space_before * 100))})
+    spc.append(pts)
+    children = [spc]
+    if bullet:
+        clr = pPr.makeelement(qn("a:buClr"), {})
+        clr.append(clr.makeelement(qn("a:srgbClr"), {"val": str(BLUE)}))
+        children += [clr, pPr.makeelement(qn("a:buChar"), {"char": "•"})]
+    else:
+        children.append(pPr.makeelement(qn("a:buNone"), {}))
+    for i, c in enumerate(children):
+        pPr.insert(i, c)
+
+
+Run = tuple[str, bool, RGBColor]  # (text, bold, colour)
+
+
+def _write(
+    tf,
+    items: list[str | list[Run]],
+    size: float = 14,
+    bullet: bool = True,
+    space_before: float = 7,
+    first_level: int = 0,
+) -> None:
+    """Write paragraphs; each item is a string or a list of styled runs."""
+    tf.word_wrap = True
+    for i, item in enumerate(items):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        for r in list(p.runs):
+            r._r.getparent().remove(r._r)
+        runs = [(item, False, INK)] if isinstance(item, str) else item
+        for text, bold, color in runs:
+            _style_run(p.add_run(), size, bold, color)
+            p.runs[-1].text = text
+        _set_bullet(p, first_level, bullet, space_before if i else 0)
+
+
+def _textbox(slide, x: float, y: float, w: float, h: float, name: str):
+    tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+    tb.name = name
+    tf = tb.text_frame
+    tf.word_wrap = True
+    tf.margin_left = tf.margin_right = Inches(0.05)
+    tf.margin_top = tf.margin_bottom = Inches(0.03)
+    return tb
+
+
+def _title(slide, text: str, bar: str | None = None, bar_idx: int = 3) -> None:
+    """Fill the title and the template's blue key-message bar."""
+    slide.shapes.title.text_frame.text = text
+    if bar is not None:
+        tf = slide.placeholders[bar_idx].text_frame
+        tf.text = ""
+        p = tf.paragraphs[0]
+        r = p.add_run()
+        r.text = bar
+        _style_run(r, 16, False, BLUE)
+
+
+def _picture(slide, path: Path, x: float, y: float, w: float, h: float, alt: str) -> tuple:
+    """Insert a PNG scaled to fit the box (aspect kept), centred horizontally, top-aligned."""
+    iw, ih = Image.open(path).size
+    scale = min(w / iw, h / ih)
+    pw, ph = iw * scale, ih * scale
+    px = x + (w - pw) / 2
+    pic = slide.shapes.add_picture(str(path), Inches(px), Inches(y), Inches(pw), Inches(ph))
+    pic.name = path.stem
+    pic._element.nvPicPr.cNvPr.set("descr", alt)
+    return px, y, pw, ph
+
+
+def _plain(shape) -> None:
+    """Drop the default shape style (its shadow and effects) from an autoshape."""
+    st = shape._element.find(qn("p:style"))
+    if st is not None:
+        shape._element.remove(st)
+
+
+def _card(slide, x: float, y: float, w: float, h: float, name: str):
+    s = slide.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h)
+    )
+    s.name = name
+    s.adjustments[0] = 0.06
+    s.fill.solid()
+    s.fill.fore_color.rgb = CARD
+    s.line.fill.background()
+    _plain(s)
+    return s
+
+
+def _stat(slide, x: float, y: float, w: float, big: str, label: str, sub: str = "") -> None:
+    """Big-number callout on a tinted card."""
+    _card(slide, x, y, w, 1.45, f"stat card {big}")
+    tb = _textbox(slide, x + 0.15, y + 0.08, w - 0.3, 1.3, f"stat {big}")
+    tf = tb.text_frame
+    p = tf.paragraphs[0]
+    r = p.add_run()
+    r.text = big
+    _style_run(r, 30, True, NAVY)
+    p2 = tf.add_paragraph()
+    r2 = p2.add_run()
+    r2.text = label
+    _style_run(r2, 12, False, INK)
+    if sub:
+        p3 = tf.add_paragraph()
+        r3 = p3.add_run()
+        r3.text = sub
+        _style_run(r3, 10, False, MUTED)
+
+
+def _todo_box(slide, x: float, y: float, w: float, h: float, head: str, lines: list[str]) -> None:
+    """Dashed box marking content that is not built yet."""
+    s = slide.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h)
+    )
+    s.name = f"pending: {head}"
+    s.adjustments[0] = 0.04
+    s.fill.background()
+    s.line.color.rgb = BLUE
+    s.line.width = Pt(1.25)
+    s.line.dash_style = MSO_LINE.DASH
+    _plain(s)
+    tf = s.text_frame
+    tf.word_wrap = True
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    tf.margin_left = tf.margin_right = Inches(0.3)
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.LEFT
+    r = p.add_run()
+    r.text = head
+    _style_run(r, 16, True, NAVY)
+    for line in lines:
+        q = tf.add_paragraph()
+        q.alignment = PP_ALIGN.LEFT
+        rr = q.add_run()
+        rr.text = line
+        _style_run(rr, 13, False, INK)
+
+
+def _caption(slide, x: float, y: float, w: float, text: str) -> None:
+    tb = _textbox(slide, x, y, w, 0.3, "caption")
+    r = tb.text_frame.paragraphs[0].add_run()
+    r.text = text
+    _style_run(r, 10, False, MUTED)
+
+
+def _content_slide(prs, cfg: Config, keep: set[int] | None = None):
+    s = prs.slides.add_slide(prs.slide_layouts[L_CONTENT])
+    _prune(s, keep if keep is not None else {0, 3})
+    _add_footer(s, cfg["deck"]["date_text"], cfg["deck"]["footer_text"])
+    return s
+
+
+# =========================================================================== slides
+def slide_title(prs, cfg: Config) -> None:
+    """Title slide."""
+    d = cfg["deck"]
+    s = prs.slides.add_slide(prs.slide_layouts[L_TITLE])
+    _prune(s, {0, 1})
+    s.shapes.title.text_frame.text = d["title"]
+    _write(s.placeholders[1].text_frame, d["subtitle_lines"], size=16, bullet=False)
+
+
+def slide_agenda(prs, cfg: Config) -> None:
+    """Table of contents."""
+    s = prs.slides.add_slide(prs.slide_layouts[L_TOC])
+    _prune(s, {1})
+    _add_footer(s, cfg["deck"]["date_text"], cfg["deck"]["footer_text"])
+    items = [
+        [(f"{i}   ", True, BLUE), (t, False, INK)]
+        for i, t in enumerate(cfg["deck"]["agenda"], start=1)
+    ]
+    _write(s.placeholders[1].text_frame, items, size=22, bullet=False, space_before=16)
+
+
+def slide_i1(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """I1: what the VIX measures."""
+    s = _content_slide(prs, cfg)
+    _title(
+        s,
+        "What Does the VIX Measure?",
+        "The VIX prices next month's S&P 500 variance; selling it pays when markets stay calm",
+    )
+    tb = _textbox(s, X0 + 0.1, Y0 + 0.1, 3.95, 4.9, "body")
+    _write(
+        tb.text_frame,
+        [
+            "The VIX is the market's 30-day forecast of S&P 500 volatility, read from "
+            "S&P options prices.",
+            "VIX² is the price of next month's variance. Selling it is a bet that the market "
+            "will be calmer than options imply.",
+            "Each month, 1990–2025, we compare what the VIX implied with the variance the "
+            "S&P actually delivered over the next 21 trading days.",
+            [
+                ("Sign: implied − realised. ", True, NAVY),
+                ("Positive means the VIX over-forecast and the seller won.", False, INK),
+            ],
+        ],
+        size=14,
+    )
+    _picture(
+        s,
+        fig / "02_vix_vs_realised_vol.png",
+        4.85,
+        Y0 + 0.1,
+        7.9,
+        4.9,
+        "VIX vs subsequently realised S&P 500 volatility, monthly 1990–2025",
+    )
+    s.notes_slide.notes_text_frame.text = (
+        "Jensen's inequality: part of 'VIX above realised vol' is mechanical because the VIX "
+        "prices variance. We compare in variance terms. Size of the gap: step 5."
+    )
+
+
+def slide_i2(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """I2: data and validation (sanity table)."""
+    s = _content_slide(prs, cfg)
+    _title(s, "Data and Validation", "Our data reproduce published benchmarks without adjustment")
+    rows = n.sanity[n.sanity["Status"] == "✅"]
+    labels = {
+        0: "Mean VIX, 1990–2024",
+        1: "Mean realised vol, 1990–2024",
+        2: "Monthly observations, 1990–2025",
+        4: "Highest VIX close",
+    }
+    data = [("Check", "Ours", "Benchmark", "")] + [
+        (
+            labels.get(i, r["Item"]),
+            str(r["Ours"]).replace(" on ", ", "),
+            str(r["Benchmark"]).replace(" on ", ", "),
+            "Match",
+        )
+        for i, r in rows.iterrows()
+    ]
+    x, y, w, rh = X0 + 0.1, Y0 + 0.1, 6.9, 0.48
+    gt = s.shapes.add_table(len(data), 4, Inches(x), Inches(y), Inches(w), Inches(rh * len(data)))
+    gt.name = "sanity table"
+    tbl = gt.table
+    for j, cw in enumerate([2.65, 1.75, 1.75, 0.75]):
+        tbl.columns[j].width = Inches(cw)
+    for i in range(len(data)):
+        tbl.rows[i].height = Inches(rh)
+    for i, rowv in enumerate(data):
+        for j, v in enumerate(rowv):
+            c = tbl.cell(i, j)
+            c.text_frame.text = ""
+            c.text_frame.paragraphs[0].add_run().text = v
+            c.fill.solid()
+            c.fill.fore_color.rgb = NAVY if i == 0 else (CARD if i % 2 == 0 else WHITE)
+            c.vertical_anchor = MSO_ANCHOR.MIDDLE
+            para = c.text_frame.paragraphs[0]
+            para.alignment = PP_ALIGN.LEFT if j == 0 else PP_ALIGN.CENTER
+            _style_run(para.runs[0], 13, i == 0, WHITE if i == 0 else (GREEN if j == 3 else INK))
+    _caption(
+        s,
+        x,
+        y + rh * len(data) + 0.08,
+        w,
+        "Benchmarks: CFA Institute Enterprising Investor, 31 Jul 2024. Nothing adjusted to match.",
+    )
+    _picture(
+        s,
+        fig / "06_data_coverage.png",
+        x,
+        y + rh * len(data) + 0.45,
+        w,
+        Y1 - (y + rh * len(data) + 0.45),
+        "Data coverage of each source, 1990–2026",
+    )
+    tb = _textbox(s, 7.75, Y0 + 0.1, 4.95, 4.9, "body")
+    _write(
+        tb.text_frame,
+        [
+            lab("Sources: ", "VIX from Cboe via FRED; S&P 500 from Yahoo Finance."),
+            lab(
+                "Sample: ",
+                f"{len(n.monthly)} months, Jan 1990 to Dec 2025, VIX read on the first "
+                "trading day of each month.",
+            ),
+            lab(
+                "No look-ahead: ",
+                "the VIX is read at the close of day t; realised variance uses only days "
+                "t+1 to t+21.",
+            ),
+            lab(
+                "Pre-2003 caveat: ",
+                "the VIX before Sept 2003 is back-calculated by Cboe, so every key result is "
+                "re-checked on post-2003 data.",
+            ),
+        ],
+        size=14,
+    )
+
+
+def slide_r1(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """R1: the VIX over-forecasts on average."""
+    win = n.row("2_shape", "payoff_scaled", "win_rate", method="Wilson")
+    mean = n.row("1_mean", "payoff_scaled", "mean", method="Newey")
+    med = n.row("1_mean", "payoff_scaled", "median")
+    spr = n.row("1_mean", "vol_spread_pts", "mean", method="Newey")
+    post = n.row("5_robustness", "payoff_scaled", "mean", sample="post-2003 only (live VIX)")
+    s = _content_slide(prs, cfg)
+    _title(
+        s,
+        "Does the VIX Over-Forecast Volatility?",
+        f"Yes: the variance seller wins in {pct(win['estimate'], 0)} of months, about 5 in 6",
+    )
+    w, gap = 2.9, 0.2
+    stats = [
+        (pct(win["estimate"]), "of months the seller wins", ci_txt(win)),
+        (pct(mean["estimate"]), "average payoff (% of implied var.)", ci_txt(mean)),
+        (pct(med["estimate"]), "payoff in the median month", ci_txt(med)),
+        (f"{num(spr['estimate'])} pts", "VIX above the vol that followed", ci_txt(spr, False)),
+    ]
+    for i, (big, label, sub) in enumerate(stats):
+        _stat(s, X0 + i * (w + gap) + 0.05, Y0 + 0.05, w, big, label, sub)
+    _picture(
+        s,
+        fig / "07_test1_mean_ci.png",
+        X0,
+        Y0 + 1.7,
+        X1 - X0,
+        3.45,
+        "Mean seller payoff with 95% confidence intervals under three standard-error methods",
+    )
+    s.notes_slide.notes_text_frame.text = (
+        f"Post-2003 only (live VIX): mean {pct(post['estimate'])} "
+        f"{ci_pct(post['ci_low'], post['ci_high'])}. Survives every robustness check "
+        "(pitch_claims.md). CIs: Newey–West 6 lags / 6-month block bootstrap."
+    )
+
+
+def slide_r2(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """R2: losses are rare, large, and come in sell-offs."""
+    skew = n.row("2_shape", "payoff_scaled", "skewness")
+    share = n.row("3_crash", "payoff_var", "loss_share_in_decile_1")
+    sell = n.row("3_crash", "payoff_scaled", "mean_in_selloff")
+    worst = n.monthly.nsmallest(5, "payoff_scaled")
+    worst_txt = ", ".join(
+        f"{pd.Timestamp(r.month):%b}{NBSP}{pd.Timestamp(r.month):%Y} ({num(r.payoff_scaled)}×)"
+        for r in worst.itertuples()
+    )
+    s = _content_slide(prs, cfg)
+    _title(
+        s,
+        "How Bad Are the Losing Months?",
+        "Losses are rare but violent, and they arrive in stock-market sell-offs",
+    )
+    tb = _textbox(s, X0 + 0.1, Y0 + 0.1, 3.9, 5.0, "body")
+    _write(
+        tb.text_frame,
+        [
+            lab(
+                "Lopsided: ",
+                f"skewness {num(skew['estimate'])} [{num(skew['ci_low'])}, "
+                f"{num(skew['ci_high'])}]. Many small gains, a few huge losses.",
+            ),
+            lab("Worst months ", f"(loss as a multiple of implied variance): {worst_txt}."),
+            lab(
+                "Clustered: ",
+                f"the worst 10% of S&P months carry {pct(share['estimate'])} of all seller "
+                f"losses {ci_pct(share['ci_low'], share['ci_high'])}; "
+                "with no clustering, about 10%.",
+            ),
+            lab(
+                "In sell-offs ",
+                f"(S&P down > 5%) the seller loses {pct(-sell['estimate'], 0)} of implied "
+                "variance on average.",
+            ),
+        ],
+        size=14,
+    )
+    _picture(
+        s,
+        fig / "09_test3_selloff.png",
+        4.75,
+        Y0 + 0.6,
+        8.05,
+        4.4,
+        "Seller payoff by S&P 500 return decile; losses concentrate in the worst decile",
+    )
+    s.notes_slide.notes_text_frame.text = (
+        "Conditioning on sell-offs describes when losses happen; it is not a forecast made at t."
+    )
+
+
+def slide_r3(prs, cfg: Config) -> None:
+    """R3: case study (step 5, placeholder)."""
+    s = _content_slide(prs, cfg)
+    _title(
+        s,
+        "Case Study: March 2020 vs April 2025",
+        "Did the VIX give any warning before the two worst recent months?",
+    )
+    _todo_box(
+        s,
+        X0 + 0.1,
+        Y0 + 0.3,
+        X1 - X0 - 0.2,
+        4.6,
+        "In progress (step 5, 28 Nov)",
+        [
+            "For each month: the VIX and past realised vol at the start, the daily path "
+            "through the window, and the seller's payoff.",
+            "Contrast: COVID was a surprise; the 2025 tariff shock built up over weeks.",
+        ],
+    )
+
+
+def slide_r4(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """R4: realised-vol dynamics."""
+    ar = n.row("R_dynamics", "log_rv_cal", "ar1_rho")
+    hl = n.row("R_dynamics", "log_rv_cal", "half_life_months")
+    tr = n.row("R_dynamics", "log_rv_cal", "trend_slope_per_year")
+    top = n.years.sort_values("rank_irregular").head(5)
+    calm = top["rv_ann_vol_pct"].idxmin()  # most irregular year among the calmest on average
+    s = _content_slide(prs, cfg)
+    _title(
+        s,
+        "How Does Realised Volatility Behave?",
+        "It clusters, then fades within a couple of months; there is no long-run upward trend",
+    )
+    _picture(
+        s,
+        fig / "12_rv_dynamics.png",
+        X0,
+        Y0 + 0.05,
+        X1 - X0,
+        3.4,
+        "Calendar-month realised volatility 1990–2025 with fitted trend, and its autocorrelation",
+    )
+    col = (X1 - X0 - 0.4) / 3
+    blocks = [
+        (
+            "Vol clusters",
+            "A high-vol month tends to be followed by another: AR(1) "
+            f"{num(ar['estimate'], 2)} [{num(ar['ci_low'], 2)}, {num(ar['ci_high'], 2)}].",
+        ),
+        (
+            "But shocks fade fast",
+            f"Half-life about {num(hl['estimate'])} months; vol always returns to its normal "
+            f"level (unit root rejected). No trend since 1990 (p{NBSP}={NBSP}{tr['p_value']:.2f}).",
+        ),
+        (
+            "Most irregular years",
+            ", ".join(str(y) for y in top.index)
+            + f". {calm} swung hard despite only "
+            + f"{num(top.loc[calm, 'rv_ann_vol_pct'], 0)}% average vol.",
+        ),
+    ]
+    for i, (head, body) in enumerate(blocks):
+        x = X0 + i * (col + 0.2)
+        _card(s, x, Y0 + 3.6, col, 1.55, f"card {head}")
+        tb = _textbox(s, x + 0.12, Y0 + 3.66, col - 0.24, 1.45, f"text {head}")
+        _write(tb.text_frame, [[(head, True, NAVY)], body], size=12.5, bullet=False, space_before=3)
+
+
+def slide_r5(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """R5: premium by conditions known at t."""
+    gl = research.bucket_labels("gap", n.rs.gap_thresholds, " pts")
+    vl = research.bucket_labels("VIX", n.rs.vix_thresholds, "")
+    g_hi = n.row("R_conditional", "payoff_scaled", "mean", sample=gl[2])
+    g_lo = n.row("R_conditional", "payoff_scaled", "mean", sample=gl[0])
+    g_d = n.row(
+        "R_conditional",
+        "payoff_scaled",
+        "diff_mean_high_minus_low",
+        sample=f"{gl[2]} minus {gl[0]}",
+    )
+    v = [n.row("R_conditional", "payoff_scaled", "mean", sample=lb) for lb in vl]
+    wins = [
+        n.row("R_conditional", "payoff_scaled", "win_rate", sample=lb)["estimate"] for lb in vl + gl
+    ]
+    s = _content_slide(prs, cfg)
+    _title(
+        s,
+        "When Is the Premium Largest?",
+        "Hard to tell in advance: simple signals point the expected way but are not significant",
+    )
+    _picture(
+        s,
+        fig / "14_conditional_premium.png",
+        X0,
+        Y0 + 0.05,
+        X1 - X0,
+        3.6,
+        "Mean seller payoff by VIX level and by VIX minus past realised vol, with 95% CIs",
+    )
+    tb = _textbox(s, X0 + 0.1, Y0 + 3.85, X1 - X0 - 0.2, 1.4, "body")
+    _write(
+        tb.text_frame,
+        [
+            lab(
+                "By VIX level: ",
+                f"{pct(v[0]['estimate'], 0)}, {pct(v[1]['estimate'], 0)} and "
+                f"{pct(v[2]['estimate'], 0)} of implied variance (low, mid, high VIX). "
+                "High-VIX months hold the biggest crashes.",
+            ),
+            lab(
+                "VIX far above recent vol: ",
+                f"{pct(g_hi['estimate'], 0)} vs {pct(g_lo['estimate'], 0)} when below; "
+                f"difference +{pct(g_d['estimate'])} {ci_pct(g_d['ci_low'], g_d['ci_high'])}, "
+                "not significant.",
+            ),
+            lab(
+                "Seller wins ",
+                f"{pct(min(wins), 0)}–{pct(max(wins), 0)} of months in every bucket; what differs "
+                "is the size of the losses. Whether a model can do better is the next section.",
+            ),
+        ],
+        size=13,
+        space_before=4,
+    )
+
+
+def slide_r6(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """R6: is the premium changing; break-even pending."""
+    tr = n.row("R_time", "payoff_scaled", "trend_slope_per_year")
+    c9 = n.rclaim("R-9")
+    roll = n.rolling["mean"]
+    first, last, low = roll.iloc[0], roll.iloc[-1], roll.min()
+    s = _content_slide(prs, cfg)
+    _title(
+        s,
+        "Is the Premium Shrinking?",
+        "Lower than in the 1990s, but not significantly shrinking",
+    )
+    _picture(
+        s,
+        fig / "15_rolling_premium.png",
+        X0,
+        Y0 + 0.05,
+        6.9,
+        4.9,
+        "Rolling 60-month mean of the scaled seller payoff, with a 95% band and linear trend",
+    )
+    tb = _textbox(s, 7.7, Y0 + 0.05, 5.0, 2.6, "body")
+    _write(
+        tb.text_frame,
+        [
+            f"The 5-year premium was about {pct(first, 0)} in the mid-1990s, fell to "
+            f"{pct(low, 0)} after COVID, and is {pct(last, 0)} now.",
+            f"Linear trend {pct(tr['estimate'], 2)} per year "
+            f"(p{NBSP}={NBSP}{tr['p_value']:.3f}); not significant after correcting for "
+            f"multiple tests (p{NBSP}={NBSP}{c9['p_holm']:.3f}).",
+        ],
+        size=14,
+    )
+    _todo_box(
+        s,
+        7.7,
+        Y0 + 2.85,
+        5.0,
+        2.15,
+        "Break-even test (step 5)",
+        [
+            "How often would a March-2020-sized loss have to occur to wipe out the "
+            "premium, vs how often it did?"
+        ],
+    )
+
+
+def slide_team(prs, cfg: Config, title: str, bar: str, who: str, lines: list[str]) -> None:
+    """Placeholder for a teammates' section."""
+    s = _content_slide(prs, cfg)
+    _title(s, title, bar)
+    _todo_box(s, X0 + 0.1, Y0 + 0.3, X1 - X0 - 0.2, 4.6, who, lines)
+
+
+def slide_verdict(prs, cfg: Config, n: Numbers) -> None:
+    """Draft conclusion: three columns, research filled, the rest pending."""
+    win = n.row("2_shape", "payoff_scaled", "win_rate", method="Wilson")
+    share = n.row("3_crash", "payoff_var", "loss_share_in_decile_1")
+    s = _content_slide(prs, cfg)
+    _title(
+        s,
+        "Verdict",
+        "Draft: pessimistic on average and paid for crash risk; 'too pessimistic' is still open",
+    )
+    col = (X1 - X0 - 0.4) / 3
+    cols = [
+        (
+            "Research",
+            [
+                f"The seller wins {pct(win['estimate'], 0)} of months.",
+                f"{pct(share['estimate'], 0)} of losses come in the worst 10% of S&P months.",
+                "No reliable early-warning signal; no significant decline in the premium.",
+            ],
+        ),
+        (
+            "Fair-price model",
+            ["Pending (teammates): is the VIX still too high after paying for crash risk?"],
+        ),
+        ("Strategy", ["Pending (teammates): does stepping aside cut drawdowns?"]),
+    ]
+    for i, (head, lines) in enumerate(cols):
+        x = X0 + i * (col + 0.2)
+        _card(s, x, Y0 + 0.2, col, 3.2, f"card {head}")
+        tb = _textbox(s, x + 0.2, Y0 + 0.35, col - 0.4, 2.9, f"text {head}")
+        _write(tb.text_frame, [[(head, True, NAVY)]] + lines, size=14, bullet=False)
+        for p in tb.text_frame.paragraphs[1:]:
+            _set_bullet(p, 0, True, 8)
+
+
+def slide_appendix(prs, cfg: Config, fig: Path) -> None:
+    """Appendix: Mincer–Zarnowitz and robustness."""
+    s = _content_slide(prs, cfg)
+    _title(s, "Appendix: Forecast Bias and Robustness", "Supporting tests for Q&A")
+    h = (Y1 - Y0 - 0.25) / 2
+    _picture(
+        s,
+        fig / "10_test4_mincer_zarnowitz.png",
+        X0,
+        Y0,
+        X1 - X0,
+        h,
+        "Mincer–Zarnowitz regression of realised on implied variance",
+    )
+    _picture(
+        s,
+        fig / "11_test5_robustness.png",
+        X0,
+        Y0 + h + 0.2,
+        X1 - X0,
+        h,
+        "Mean payoff across robustness variants with 95% CIs",
+    )
+
+
+def slide_appendix_years(prs, cfg: Config, fig: Path) -> None:
+    """Appendix: vol by year."""
+    s = _content_slide(prs, cfg)
+    _title(s, "Appendix: Volatility by Year", "Which years were most irregular?")
+    _picture(
+        s,
+        fig / "13_rv_by_year.png",
+        X0,
+        Y0,
+        X1 - X0,
+        Y1 - Y0,
+        "Annual realised vol and vol-of-vol by year",
+    )
+
+
+def slide_disclaimer(prs) -> None:
+    """The template's disclaimer slide (text lives on the layout)."""
+    prs.slides.add_slide(prs.slide_layouts[L_DISCLAIMER])
+
+
+# =========================================================================== build
+def build_deck(cfg: Config) -> Path:
+    """Build the pitch deck from the OAF template; returns the output path."""
+    d = cfg["deck"]
+    tpl = cfg.root / d["template"]
+    out = cfg.root / d["output"]
+    fig = cfg.path("figures")
+    n = load_numbers(cfg)
+    prs = Presentation(str(tpl))
+    _clear_slides(prs)
+
+    slide_title(prs, cfg)
+    slide_agenda(prs, cfg)
+    slide_i1(prs, cfg, n, fig)
+    slide_i2(prs, cfg, n, fig)
+    slide_r1(prs, cfg, n, fig)
+    slide_r2(prs, cfg, n, fig)
+    slide_r3(prs, cfg)
+    slide_r4(prs, cfg, n, fig)
+    slide_r5(prs, cfg, n, fig)
+    slide_r6(prs, cfg, n, fig)
+    slide_team(
+        prs,
+        cfg,
+        "Fair-Price Model",
+        "Is the VIX still too high after paying the seller for crash risk?",
+        "Model team's slides go here",
+        [
+            "Pricing approaches tried (including the utility-based model that failed in "
+            "crash months), the final model and its out-of-sample evidence."
+        ],
+    )
+    slide_team(
+        prs,
+        cfg,
+        "Strategy and Backtest",
+        "Does stepping aside in thin-premium months cut the drawdowns?",
+        "Strategy team's slides go here",
+        [
+            "Instrument, rules, and baseline vs model-gated results (Sharpe, max drawdown, "
+            "worst month), with and without costs."
+        ],
+    )
+    slide_verdict(prs, cfg, n)
+    slide_appendix(prs, cfg, fig)
+    slide_appendix_years(prs, cfg, fig)
+    slide_disclaimer(prs)
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    prs.save(str(out))
+    log.info("deck: wrote %s (%d slides)", out, len(prs.slides))
+    return out

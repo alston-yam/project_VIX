@@ -28,3 +28,6 @@ logs/*.log
 .DS_Store
 .vscode/
 .idea/
+
+# Deck render scratch (slide images for checking)
+deck/_render/

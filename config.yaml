@@ -143,3 +143,23 @@ research:
     rolling: "research_rolling_premium.csv"
     summary: "research_summary.md"
     claims: "research_claims.md"
+
+# ---------------------------------------------------------------------------
+# Pitch deck (src/vrp/deck.py, `make deck`). Numbers are read from the generated tables.
+# ---------------------------------------------------------------------------
+deck:
+  template: "deck/template/OAF_Slide_Template.pptx"
+  output: "deck/VIX_pitch.pptx"
+  title: "Is the VIX Too Pessimistic?"
+  subtitle_lines:
+    - "The S&P 500 variance risk premium, 1990–2025"
+    - "Oxford Alpha Fund Quant Bootcamp | 2 December 2026"
+  date_text: "Data: Jan 1990 – Dec 2025"
+  footer_text: "S&P 500 Variance Risk Premium"
+  agenda:
+    - "What the VIX measures"
+    - "Is the VIX pessimistic? Evidence from 1990–2025"
+    - "A fair price for the VIX"
+    - "Trading the premium: strategy and backtest"
+    - "Verdict"
+

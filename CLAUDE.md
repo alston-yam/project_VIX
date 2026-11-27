@@ -39,6 +39,7 @@ make all        # download (cached) → clean → features → sample → events
 | `make refresh` | data stage with fresh downloads (`--refresh`) |
 | `make figures` | figures from processed data |
 | `make stats` / `make research` | v2 tests / research section (figures 12–15) |
+| `make deck` | pitch deck → `deck/VIX_pitch.pptx` (needs python-pptx) |
 | `make test` | `pytest` (must pass before any commit) |
 | `make lint` / `make format` | black + ruff check / fix (line length 100) |
 | `make clean` | delete raw/interim data, logs and caches |
@@ -65,6 +66,7 @@ src/vrp/
   stats_report.py        v2 stats_summary.md + pitch_claims.md (claim rule: CI direction + Holm)
   research.py            research: calendar-month RV dynamics, premium by known-at-t buckets, time trend
   research_report.py     research_summary.md + research_claims.md (pre-registered R-1…R-9, own Holm family)
+  deck.py                pitch deck: fills deck/template/OAF_Slide_Template.pptx → deck/VIX_pitch.pptx (numbers from tables)
   pipeline.py            orchestrates stages; read_processed(cfg, name); write_csv(); manifest.json
 tests/                   conftest.py (synthetic panel builders + real-data fixtures), test_alignment/features/clean/stats
 notebooks/               loads processed data and calls src/; no logic of its own

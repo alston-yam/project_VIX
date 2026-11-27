@@ -4,12 +4,12 @@
 PYTHON ?= python
 export PYTHONPATH := src
 
-.PHONY: all data refresh figures stats research test lint format clean help
+.PHONY: all data refresh figures stats research deck test lint format clean help
 
 help:  ## Show available targets
 	@grep -E '^[a-z]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
 
-all: data figures stats research test  ## Build data, figures, tests, research, then run tests
+all: data figures stats research deck test  ## Build data, figures, tests, research, deck, then run tests
 
 data:  ## Download (cached), clean, build features, sample, events, validate
 	$(PYTHON) -m vrp.pipeline --stage data
@@ -25,6 +25,9 @@ stats:  ## v2 statistical tests: tables, summary, pitch claims, figures 07–11
 
 research:  ## Research section: tests R-1…R-9, reports, research claims, figures 12–15
 	$(PYTHON) -m vrp.pipeline --stage research
+
+deck:  ## Pitch deck from the OAF template → deck/VIX_pitch.pptx
+	$(PYTHON) -m vrp.pipeline --stage deck
 
 test:  ## Run the test suite
 	$(PYTHON) -m pytest -q

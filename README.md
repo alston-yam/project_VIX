@@ -138,6 +138,7 @@ that change future prices and check that past values do not move.
 | `outputs/reports/research_summary.md`, `research_tables.csv`, `research_rv_by_year.csv`, `research_rolling_premium.csv` | research: vol dynamics, premium by known-at-t conditions, time variation |
 | `outputs/reports/research_claims.md` / `.csv` | research: the nine pre-registered claims (R-1 … R-9) and verdicts |
 | `outputs/figures/12…15` | research: vol dynamics, vol by year, premium by conditions at t, rolling premium |
+| `deck/VIX_pitch.pptx` | pitch deck built from the OAF template by `make deck`; every number read from the tables above |
 
 v1 sanity check (1990–2024, monthly sample): mean VIX **19.54** (benchmark ≈ 19.6), mean
 realised vol **15.34** (≈ 15.5), **432** monthly rows, highest VIX close **82.69 on 2020-03-16**.

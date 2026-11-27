@@ -7,6 +7,7 @@ Usage::
     python -m vrp.pipeline --stage figures # figures from processed data
     python -m vrp.pipeline --stage stats   # v2 statistical tests, reports, claims, figures 07–11
     python -m vrp.pipeline --stage research  # research tests R-1…R-9, reports, figures 12–15
+    python -m vrp.pipeline --stage deck    # pitch deck from the OAF template (deck/VIX_pitch.pptx)
     python -m vrp.pipeline --refresh       # ignore the raw-data cache
 """
 
@@ -361,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument(
-        "--stage", choices=["all", "data", "figures", "stats", "research"], default="all"
+        "--stage", choices=["all", "data", "figures", "stats", "research", "deck"], default="all"
     )
     ap.add_argument("--refresh", action="store_true", help="re-download raw data")
     ap.add_argument("--config", default=None, help="path to config.yaml")
@@ -379,6 +380,10 @@ def main(argv: list[str] | None = None) -> int:
         run_stats(cfg)
     if args.stage in ("all", "research"):
         run_research(cfg)
+    if args.stage in ("all", "deck"):
+        from vrp import deck
+
+        deck.build_deck(cfg)
     log.info("pipeline done")
     return 0
 

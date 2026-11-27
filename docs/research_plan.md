@@ -83,7 +83,11 @@ Descriptive: 60-month rolling mean of `payoff_scaled` with a Newey–West band (
 overlapping windows, so the band is not a test). The structural-break test was **dropped**
 (26 Nov 2026) to save time; the pre/post-2003 comparison (v2 C21) remains.
 
-### D. Step 5 (scheduled 28 Nov): break-even, Jensen, case studies
+### D. Step 5 (done 27 Nov): break-even, Jensen, case studies
+
+Exact definitions: "Changes", 27 Nov. Claims R-10 (scaled) and R-11 (raw variance); the Jensen
+gap and the case studies are descriptive. Outputs: `research_breakeven.csv`,
+`research_case_paths.csv`, figures 16–17, section D of `research_summary.md`.
 
 Defined before running: (i) **break-even crash frequency**, i.e. how often a loss the size of the
 worst month would have to occur for the mean scaled payoff to be zero, against how often it
@@ -108,3 +112,32 @@ and past RV at t, the daily path through the window, payoff).
 - 26 Nov 2026: a quick exploratory look at bucket means (VIX terciles) was taken before the
   thresholds above were fixed. The directions in R-5 and R-6 are the economically expected
   ones (high VIX ⇒ more variance to sell, but a crash is more likely), stated here for honesty.
+- 27 Nov 2026 (written before the step 5 code was run): exact definitions for section D.
+  **Break-even (R-10 scaled, R-11 raw variance).** Scenario: a loss the size of the worst
+  month, L. Ordinary months (all others) earn g on average. If a share f of months were such
+  crashes, the mean payoff is (1 − f)·g + f·L, so it is zero at f\* = g / (g − L). We report
+  f\* as "a crash this size once every N\* years" and compare it with the observed frequency
+  (k crashes in T = 36 years, exact Poisson CI). Uncertainty in g: 6-month block bootstrap,
+  with L held fixed (it is the scenario). Claim: N\* is below the observed years between
+  crashes and its 95% CI excludes it; p-value = exact Poisson P(N ≤ k) at the
+  *conservative* end of the break-even rate (the lower bound of its bootstrap CI), i.e.
+  "even if the premium is at the low end of its CI and crashes really are that frequent, how
+  likely is seeing only k?". Both measures are claims (rule: report raw and scaled), and they
+  join the research Holm family (now 11 claims), which can only make R-1 … R-9 harder to pass.
+  A chart-only curve repeats this for fixed crash thresholds from `config.yaml`. Caveat
+  stated up front: by construction f\* exceeds the observed share whenever the mean payoff is
+  positive; what the test adds is the Poisson question "how unlucky would we need to have
+  been?", not new evidence on the mean.
+  **Jensen gap (descriptive, no claim).** (a) Unconditional √E[RV] − E[√RV] in vol points
+  (plan wording; an upper bound, because it also counts vol moving between months, which the
+  VIX tracks). (b) Conditional: regress log forward RV on log VIX² and log past RV (both
+  known at t); with the residuals e, E_t[√RV] / √E_t[RV] = mean(e^{e/2}) / √mean(e^e)
+  (smearing, no normality assumed). If VIX² were a fair forecast, the convexity part of
+  "VIX − realised vol" is mean(VIX)·(1 − that ratio); we report it as a share of the mean
+  spread, and the share of months a fair VIX would still exceed realised vol
+  (P(e < log mean e^e)) against the actual 83.8%. Block bootstrap CIs.
+  **Case studies (descriptive).** 2020-03 and 2025-04: VIX and past RV at t, realised vol,
+  payoffs and rank, days with |r| above 3× the VIX-implied daily s.d., the first day the
+  realised variance accrued in the window exceeded the implied variance sold, the window's
+  S&P drawdown, months of average premium lost, and months until the cumulative scaled
+  payoff from the crash month was back above zero.

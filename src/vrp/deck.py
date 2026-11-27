@@ -14,6 +14,7 @@ import copy
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from PIL import Image
 from pptx import Presentation
@@ -89,6 +90,7 @@ class Numbers:
     pclaims: pd.DataFrame
     years: pd.DataFrame
     rolling: pd.DataFrame
+    breakeven: pd.DataFrame
     monthly: pd.DataFrame
     sanity: pd.DataFrame
     rs: research.ResearchSettings
@@ -117,6 +119,10 @@ class Numbers:
         """One research claim row by id (e.g. 'R-9')."""
         return self.rclaims.set_index("id").loc[cid]
 
+    def case(self, month: str, statistic: str) -> float:
+        """One case-study number (e.g. '2020-03', 'premium_gone_by_day')."""
+        return float(self.row("R_case", "case_study", statistic, sample=month)["estimate"])
+
 
 def load_numbers(cfg: Config) -> Numbers:
     """Read every generated table the deck quotes."""
@@ -133,10 +139,21 @@ def load_numbers(cfg: Config) -> Numbers:
         pclaims=pd.read_csv(rep / "pitch_claims.csv"),
         years=pd.read_csv(rep / ro["rv_by_year"], index_col=0),
         rolling=pd.read_csv(rep / ro["rolling"], index_col=0, parse_dates=[0]),
+        breakeven=pd.read_csv(rep / ro["breakeven"], dtype={"worst_month": str}),
         monthly=monthly,
         sanity=validate.sanity_table(panel, monthly, cfg),
         rs=research.ResearchSettings.from_config(cfg),
     )
+
+
+def p_short(p: float) -> str:
+    """p-value for a slide: 'p < 0.001' or 'p = 0.034'."""
+    return f"p{NBSP}<{NBSP}0.001" if p < 0.001 else f"p{NBSP}={NBSP}{p:.3f}"
+
+
+def month_label(m: str) -> str:
+    """'2020-03' → 'Mar 2020' (non-breaking space)."""
+    return pd.Period(m, "M").strftime("%b") + NBSP + m[:4]
 
 
 # =========================================================================== pptx helpers
@@ -414,9 +431,16 @@ def slide_i1(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         4.9,
         "VIX vs subsequently realised S&P 500 volatility, monthly 1990–2025",
     )
+    jm = n.row("R_jensen", "vol_spread_pts", "mean")
+    ja = n.row("R_jensen", "vol_spread_pts", "share_vix_above_realised")
+    jf = n.row("R_jensen", "rv_fwd21", "fair_vix_share_above_realised")
+    jc = n.row("R_jensen", "rv_fwd21", "cond_convexity_share_of_spread")
     s.notes_slide.notes_text_frame.text = (
-        "Jensen's inequality: part of 'VIX above realised vol' is mechanical because the VIX "
-        "prices variance. We compare in variance terms. Size of the gap: step 5."
+        "Jensen's inequality: the VIX prices variance, so even a VIX with no premium would sit "
+        f"above realised vol in about {pct(jf['estimate'], 0)} of months; it actually does in "
+        f"{pct(ja['estimate'], 0)}. Convexity explains about {pct(jc['estimate'], 0)} "
+        f"{ci_pct(jc['ci_low'], jc['ci_high'], 0)} of the average {num(jm['estimate'])}-point "
+        "gap; the rest is premium. That is why we test in variance terms."
     )
 
 
@@ -592,26 +616,65 @@ def slide_r2(prs, cfg: Config, n: Numbers, fig: Path) -> None:
     )
 
 
-def slide_r3(prs, cfg: Config) -> None:
-    """R3: case study (step 5, placeholder)."""
+def slide_r3(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """R3: the two worst recent months, day by day."""
+    cases = list(n.rs.case_studies)
+    gone = max(n.case(m, "premium_gone_by_day") for m in cases)
     s = _content_slide(prs, cfg)
     _title(
         s,
         "Case Study: March 2020 vs April 2025",
-        "Did the VIX give any warning before the two worst recent months?",
+        f"In both months the seller's whole premium was gone within {gone:.0f} trading days",
     )
-    _todo_box(
+    _picture(
         s,
-        X0 + 0.1,
-        Y0 + 0.3,
-        X1 - X0 - 0.2,
-        4.6,
-        "In progress (step 5, 28 Nov)",
+        fig / "17_case_studies.png",
+        X0,
+        Y0 + 0.05,
+        7.1,
+        4.9,
+        "Daily S&P 500, VIX and realised variance accrued against the implied variance sold, "
+        "for March 2020 and April 2025",
+    )
+    paras: list = []
+    for m in cases:
+        vix, rv = n.case(m, "vix_at_t"), n.case(m, "realised_vol_fwd")
+        rec = n.case(m, "months_to_recover")
+        rec_txt = f"won back in {rec:.0f} months" if np.isfinite(rec) else "not yet won back"
+        paras.append(
+            [
+                (f"{month_label(m)}: ", True, NAVY),
+                (
+                    f"VIX {vix:.0f} at the start (higher than "
+                    f"{pct(n.case(m, 'vix_at_t_percentile'), 0)} of months), realised vol "
+                    f"{rv:.0f}, {rv / vix:.1f}× the VIX. Premium gone by "
+                    f"day {n.case(m, 'premium_gone_by_day'):.0f}; the loss equalled "
+                    f"{n.case(m, 'months_of_premium_lost'):.0f} months of average premium, "
+                    f"{rec_txt}.",
+                    False,
+                    INK,
+                ),
+            ]
+        )
+    last = cases[-1]
+    paras.append(
         [
-            "For each month: the VIX and past realised vol at the start, the daily path "
-            "through the window, and the seller's payoff.",
-            "Contrast: COVID was a surprise; the 2025 tariff shock built up over weeks.",
-        ],
+            ("The path matters, not the end point. ", True, NAVY),
+            (
+                f"In {month_label(last)} the S&P fell "
+                f"{pct(-n.case(last, 'spx_max_drawdown_window'), 0)} inside the window yet "
+                f"ended {pct(n.case(last, 'spx_return_window'), 1)}; the "
+                "seller still lost, because variance accrues every day.",
+                False,
+                INK,
+            ),
+        ]
+    )
+    tb = _textbox(s, 7.85, Y0 + 0.05, 4.9, 4.9, "body")
+    _write(tb.text_frame, paras, size=13)
+    s.notes_slide.notes_text_frame.text = (
+        "Descriptive: these are outcomes after t, not signals. A high VIX at the start was no "
+        "protection in 2020. Numbers: research_summary.md, section D (case studies)."
     )
 
 
@@ -754,17 +817,47 @@ def slide_r6(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         ],
         size=14,
     )
-    _todo_box(
-        s,
-        7.7,
-        Y0 + 2.85,
-        5.0,
-        2.15,
-        "Break-even test (step 5)",
+    be = n.row("R_breakeven", "payoff_scaled", "breakeven_years_between")
+    be_v = n.row("R_breakeven", "payoff_var", "breakeven_years_between")
+    c10, c11 = n.rclaim("R-10"), n.rclaim("R-11")
+    worst = _worst_label(n)
+    _card(s, 7.7, Y0 + 3.0, 5.0, 1.95, "card break-even")
+    tb2 = _textbox(s, 7.85, Y0 + 3.05, 4.7, 1.85, "text break-even")
+    _write(
+        tb2.text_frame,
         [
-            "How often would a March-2020-sized loss have to occur to wipe out the "
-            "premium, vs how often it did?"
+            [("Too pessimistic? The break-even test", True, NAVY)],
+            [
+                (f"A {worst}-sized loss would have to hit every ", False, INK),
+                (f"{num(be['estimate'])} years", True, NAVY),
+                (
+                    f" [{num(be['ci_low'])}, {num(be['ci_high'])}] for the seller to break even. "
+                    f"It hit once in {be['null_value']:.0f} years ({p_short(c10['p_holm'])}).",
+                    False,
+                    INK,
+                ),
+            ],
+            [
+                (
+                    f"In raw variance: every {num(be_v['estimate'])} years; "
+                    + ("significant." if c11["supported"] else "not significant.")
+                    + " See appendix.",
+                    False,
+                    MUTED,
+                )
+            ],
         ],
+        size=12.5,
+        bullet=False,
+        space_before=4,
+    )
+
+
+def _worst_label(n: Numbers) -> str:
+    """Month label of the worst scaled-payoff month (the break-even scenario)."""
+    c = n.breakeven
+    return month_label(
+        str(c.loc[(c["measure"] == "payoff_scaled") & c["is_worst"], "worst_month"].iloc[0])
     )
 
 
@@ -779,6 +872,8 @@ def slide_verdict(prs, cfg: Config, n: Numbers) -> None:
     """Draft conclusion: three columns, research filled, the rest pending."""
     win = n.row("2_shape", "payoff_scaled", "win_rate", method="Wilson")
     share = n.row("3_crash", "payoff_var", "loss_share_in_decile_1")
+    be = n.row("R_breakeven", "payoff_scaled", "breakeven_years_between")
+    be = n.row("R_breakeven", "payoff_scaled", "breakeven_years_between")
     s = _content_slide(prs, cfg)
     _title(
         s,
@@ -792,6 +887,8 @@ def slide_verdict(prs, cfg: Config, n: Numbers) -> None:
             [
                 f"The seller wins {pct(win['estimate'], 0)} of months.",
                 f"{pct(share['estimate'], 0)} of losses come in the worst 10% of S&P months.",
+                f"A {_worst_label(n)}-sized loss would need to hit every {num(be['estimate'])} "
+                f"years to wipe out the premium; it hit once in {be['null_value']:.0f} years.",
                 "No reliable early-warning signal; no significant decline in the premium.",
             ],
         ),
@@ -850,6 +947,25 @@ def slide_appendix_years(prs, cfg: Config, fig: Path) -> None:
     )
 
 
+def slide_appendix_breakeven(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """Appendix: the break-even curve for both payoff measures."""
+    s = _content_slide(prs, cfg)
+    _title(
+        s,
+        "Appendix: Break-Even Crash Frequency",
+        "How often would crashes of each size have to happen to wipe out the premium?",
+    )
+    _picture(
+        s,
+        fig / "16_breakeven.png",
+        X0,
+        Y0,
+        X1 - X0,
+        Y1 - Y0,
+        "Years between crashes needed to break even vs observed, by crash size, scaled and raw",
+    )
+
+
 def slide_disclaimer(prs) -> None:
     """The template's disclaimer slide (text lives on the layout)."""
     prs.slides.add_slide(prs.slide_layouts[L_DISCLAIMER])
@@ -872,7 +988,7 @@ def build_deck(cfg: Config) -> Path:
     slide_i2(prs, cfg, n, fig)
     slide_r1(prs, cfg, n, fig)
     slide_r2(prs, cfg, n, fig)
-    slide_r3(prs, cfg)
+    slide_r3(prs, cfg, n, fig)
     slide_r4(prs, cfg, n, fig)
     slide_r5(prs, cfg, n, fig)
     slide_r6(prs, cfg, n, fig)
@@ -900,6 +1016,7 @@ def build_deck(cfg: Config) -> Path:
     )
     slide_verdict(prs, cfg, n)
     slide_appendix(prs, cfg, fig)
+    slide_appendix_breakeven(prs, cfg, n, fig)
     slide_appendix_years(prs, cfg, fig)
     slide_disclaimer(prs)
 

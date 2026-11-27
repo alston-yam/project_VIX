@@ -41,3 +41,54 @@ R_conditional,payoff_scaled,gap > 5 pts,win_rate,0.8406593406593407,,,,,,,182,
 R_conditional,payoff_scaled,gap > 5 pts minus gap ≤ 0 pts,diff_mean_high_minus_low,0.19065115198764432,-0.041075109084982735,0.45092923805485446,block bootstrap (6-month blocks),0.0,bootstrap,0.12918708129187081,229,"Welch t = 1.54, p = 0.128"
 R_time,payoff_var,monthly 1990–2025,trend_slope_per_year,-0.00035578830987335755,-0.0007689082185176276,5.73315987709125e-05,Newey–West (6 lags),0.0,"HAC z, z = -1.69",0.09141779587633161,432,fitted value 1990: 0.01751; 2025: 0.004735
 R_time,payoff_scaled,monthly 1990–2025,trend_slope_per_year,-0.008324068226042808,-0.014893359685892262,-0.0017547767661933548,Newey–West (6 lags),0.0,"HAC z, z = -2.48",0.01300961888246019,432,fitted value 1990: 0.4506; 2025: 0.1516
+R_breakeven,payoff_var,monthly 1990–2025,crash_size,-0.760863233470094,,,,,,,1,worst month 2020-03 (the scenario; held fixed)
+R_breakeven,payoff_var,monthly 1990–2025,ordinary_mean,0.01291511289171656,0.0075688777166691805,0.01729348264307335,block bootstrap (6-month blocks),,,,431,mean payoff of every other month
+R_breakeven,payoff_var,monthly 1990–2025,breakeven_rate_per_year,0.20029166676645543,0.11819721125124559,0.2666838021380887,block bootstrap (6-month blocks),,,,432,
+R_breakeven,payoff_var,monthly 1990–2025,observed_rate_per_year,0.027777777777777776,0.0007032724440080521,0.15476787197052494,exact Poisson (Garwood),,,,432,1 crash(es) of this size in 36 years
+R_breakeven,payoff_var,monthly 1990–2025,breakeven_years_between,4.992718949041562,3.7497590479162315,8.460436497730498,block bootstrap (6-month blocks),36.0,one-sided exact Poisson P(N ≤ observed) at the lower CI bound of the break-even rate (conservative),0.0745786767890391,432,observed: 1 in 36 years (once every 36 years; 95% CI once every 6.5 to 1422 years)
+R_breakeven,payoff_var,monthly 1990–2025,breakeven_crashes_in_sample,7.210500003592395,,,,,,,432,crashes of this size the sample would have needed (observed 1)
+R_breakeven,payoff_var,monthly 1990–2025,months_of_premium_per_crash,58.91262738849873,,,,,,,432,one crash wipes out this many ordinary months' average payoff
+R_breakeven,payoff_scaled,monthly 1990–2025,crash_size,-6.8122990947960265,,,,,,,1,worst month 2020-03 (the scenario; held fixed)
+R_breakeven,payoff_scaled,monthly 1990–2025,ordinary_mean,0.3176102327142602,0.24082134777595043,0.38355610673501705,block bootstrap (6-month blocks),,,,431,mean payoff of every other month
+R_breakeven,payoff_scaled,monthly 1990–2025,breakeven_rate_per_year,0.5345541741835881,0.40972732504969156,0.6396283903754082,block bootstrap (6-month blocks),,,,432,
+R_breakeven,payoff_scaled,monthly 1990–2025,observed_rate_per_year,0.027777777777777776,0.0007032724440080521,0.15476787197052494,exact Poisson (Garwood),,,,432,1 crash(es) of this size in 36 years
+R_breakeven,payoff_scaled,monthly 1990–2025,breakeven_years_between,1.870717783706911,1.563407777151799,2.4406475694017247,block bootstrap (6-month blocks),36.0,one-sided exact Poisson P(N ≤ observed) at the lower CI bound of the break-even rate (conservative),6.185320880805534e-06,432,observed: 1 in 36 years (once every 36 years; 95% CI once every 6.5 to 1422 years)
+R_breakeven,payoff_scaled,monthly 1990–2025,breakeven_crashes_in_sample,19.243950270609172,,,,,,,432,crashes of this size the sample would have needed (observed 1)
+R_breakeven,payoff_scaled,monthly 1990–2025,months_of_premium_per_crash,21.448613404482938,,,,,,,432,one crash wipes out this many ordinary months' average payoff
+R_jensen,vol_spread_pts,monthly 1990–2025,mean,4.192226526170388,3.405085993932476,4.951184984385997,block bootstrap (6-month blocks),,,,431,mean VIX − realised vol (vol points)
+R_jensen,vol_spread_pts,monthly 1990–2025,share_vix_above_realised,0.839907192575406,0.802784222737819,0.877030162412993,block bootstrap (6-month blocks),,,,431,
+R_jensen,rv_fwd21,monthly 1990–2025,uncond_jensen_gap_pts,2.753048601399799,1.5073762202906804,4.092386427723641,block bootstrap (6-month blocks),,,,431,√E[RV] − E[√RV]; an upper bound (also counts vol moving between months)
+R_jensen,rv_fwd21,monthly 1990–2025,cond_convexity_pts,1.3191319665235197,0.9393395275673696,1.7014612006303715,block bootstrap (6-month blocks),,,,431,"mean(VIX)·(1 − E_t√RV/√E_tRV); log-RV forecast R² 0.54, residual var 0.432"
+R_jensen,rv_fwd21,monthly 1990–2025,cond_convexity_share_of_spread,0.31466142353918813,0.20096542169272105,0.4698988313456181,block bootstrap (6-month blocks),,,,431,
+R_jensen,rv_fwd21,monthly 1990–2025,fair_vix_share_above_realised,0.691415313225058,0.6380510440835266,0.740139211136891,block bootstrap (6-month blocks),,,,431,share of months a VIX with zero premium (VIX² = E_t[RV]) would still beat realised vol
+R_jensen,rv_fwd21,monthly 1990–2025,cond_vol_ratio,0.9324549168411129,,,,,,,431,E_t[√RV] / √E_t[RV] by smearing; lognormal check exp(−σ²/8) = 0.9474
+R_case,case_study,2020-03,vix_at_t,33.42,,,,,,,1,t = 2020-03-02
+R_case,case_study,2020-03,vix_at_t_percentile,0.9537037037037037,,,,,,,1,"share of sample months with a lower VIX at t (descriptive, full sample)"
+R_case,case_study,2020-03,past_rv_vol_at_t,29.546639163944054,,,,,,,1,vol points
+R_case,case_study,2020-03,realised_vol_fwd,93.41053867043557,,,,,,,1,vol points
+R_case,case_study,2020-03,payoff_var,-0.760863233470094,,,,,,,1,
+R_case,case_study,2020-03,payoff_scaled,-6.8122990947960265,,,,,,,1,
+R_case,case_study,2020-03,payoff_scaled_rank,1.0,,,,,,,1,1 = worst of 432 months
+R_case,case_study,2020-03,spx_return_window,-0.1636253274914593,,,,,,,1,simple return
+R_case,case_study,2020-03,spx_max_drawdown_window,-0.27597624886016936,,,,,,,1,vs the close at t
+R_case,case_study,2020-03,vix_max_window,82.69,,,,,,,1,on 2020-03-16
+R_case,case_study,2020-03,largest_daily_move,-0.12765219747281742,,,,,,,1,log return on 2020-03-16
+R_case,case_study,2020-03,big_move_days,5.0,,,,,,,1,"days with an absolute return above 3× the VIX-implied daily s.d. (2.11%), of 21"
+R_case,case_study,2020-03,premium_gone_by_day,5.0,,,,,,,1,first trading day the accrued realised variance exceeded the implied variance
+R_case,case_study,2020-03,months_of_premium_lost,21.448613404482938,,,,,,,1,loss ÷ mean scaled payoff of all other months
+R_case,case_study,2020-03,months_to_recover,12.0,,,,,,,1,until cumulative scaled payoff from this month is ≥ 0 (nan = not by sample end)
+R_case,case_study,2025-04,vix_at_t,21.77,,,,,,,1,t = 2025-04-01
+R_case,case_study,2025-04,vix_at_t_percentile,0.6944444444444444,,,,,,,1,"share of sample months with a lower VIX at t (descriptive, full sample)"
+R_case,case_study,2025-04,past_rv_vol_at_t,19.77812251965426,,,,,,,1,vol points
+R_case,case_study,2025-04,realised_vol_fwd,47.68785376137068,,,,,,,1,vol points
+R_case,case_study,2025-04,payoff_var,-0.18001984963658754,,,,,,,1,
+R_case,case_study,2025-04,payoff_scaled,-3.798424832641657,,,,,,,1,
+R_case,case_study,2025-04,payoff_scaled_rank,4.0,,,,,,,1,1 = worst of 432 months
+R_case,case_study,2025-04,spx_return_window,-0.005135687716069093,,,,,,,1,simple return
+R_case,case_study,2025-04,spx_max_drawdown_window,-0.11544323521281574,,,,,,,1,vs the close at t
+R_case,case_study,2025-04,vix_max_window,52.33,,,,,,,1,on 2025-04-08
+R_case,case_study,2025-04,largest_daily_move,0.09089487983303646,,,,,,,1,log return on 2025-04-09
+R_case,case_study,2025-04,big_move_days,3.0,,,,,,,1,"days with an absolute return above 3× the VIX-implied daily s.d. (1.37%), of 21"
+R_case,case_study,2025-04,premium_gone_by_day,3.0,,,,,,,1,first trading day the accrued realised variance exceeded the implied variance
+R_case,case_study,2025-04,months_of_premium_lost,12.228625289929454,,,,,,,1,loss ÷ mean scaled payoff of all other months
+R_case,case_study,2025-04,months_to_recover,6.0,,,,,,,1,until cumulative scaled payoff from this month is ≥ 0 (nan = not by sample end)

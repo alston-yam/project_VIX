@@ -135,8 +135,11 @@ behaves over time, never as a predictor of a same-month outcome.
 `research_tables.csv`: same columns as `stats_tables.csv`. `test` is `R_dynamics`
 (calendar-month log realised variance: AR(1), ADF, trend, change skewness), `R_conditional`
 (seller payoff by **known-at-t** buckets of `vix_close` and of the gap VIX − 100·√`rv_past21_ann_var`)
-or `R_time` (linear trend in the payoff). Conditioning variables are known at the close of t;
-the payoffs being described are outcomes.
+or `R_time` (linear trend in the payoff), and for step 5 `R_breakeven` (break-even crash
+frequency), `R_jensen` (convexity part of VIX − realised vol) and `R_case` (case-study
+numbers; `sample` is the month). Conditioning variables are known at the close of t; the
+payoffs being described are outcomes. The Jensen forecast of log forward RV uses only
+`iv_ann_var` and `rv_past21_ann_var` (known at t) as predictors.
 
 `research_rv_by_year.csv`: one row per calendar year: `n_days`, `rv_ann_vol_pct` (all daily
 returns in the year), `vol_of_vol_log` (std of the 12 monthly log realised variances),
@@ -146,8 +149,30 @@ returns in the year), `vol_of_vol_log` (std of the 12 monthly log realised varia
 indexed by the window's last month, with a Newey–West 95% band (`ci_low`, `ci_high`). Windows
 overlap; chart only. Uses outcomes (payoffs), so it describes the past.
 
-`research_claims.csv`: as `pitch_claims.csv`, for the nine pre-registered research claims
-R-1 … R-9 (own Holm family). Rendered as `research_claims.md`; full tables in
+`research_breakeven.csv` (step 5): one row per (`measure`, `threshold`). A "crash" is a month
+with payoff ≤ `threshold`; `is_worst` marks the headline scenario (the single worst month,
+`worst_month`). All columns describe outcomes (the past); none is known at t.
+
+| Column | Unit | Meaning |
+|---|---|---|
+| `n_crash`, `n` | count | crash months; all months |
+| `crash_mean` | payoff units | L: mean payoff of the crash months (the scenario size, held fixed) |
+| `ordinary_mean` (`_lo`, `_hi`) | payoff units | g: mean payoff of the other months, block-bootstrap 95% CI |
+| `breakeven_rate` (`_lo`, `_hi`) | crashes per year | 12 · g / (g − L): crash frequency at which the mean payoff is zero |
+| `observed_rate` (`_lo`, `_hi`) | crashes per year | `n_crash` / `years`, exact Poisson (Garwood) 95% CI |
+| `years` | years | sample length, `n` / 12 |
+| `p_conservative` | probability | P(N ≤ `n_crash`) for Poisson crashes at `breakeven_rate_lo` |
+| `ratio_breakeven_to_observed` | ratio | `breakeven_rate` / `observed_rate` |
+
+`research_case_paths.csv` (step 5): daily rows around each case-study month (`case`), indexed
+by date. `day` = trading days from t (0 = t, the month's first trading day); `spx_close`,
+`vix_close`, `ret_log` as in the panel; `spx_rel` = S&P close ÷ close at t;
+`accrued_rv_ann_var` = (252 / 21) · Σ r² over days 1…`day` (0 at t, blank before; equals
+`rv_fwd21_ann_var` on day 21); `accrued_over_implied` = that ÷ `iv_ann_var` at t (above 1 = the
+seller's premium is gone). Rows after t are **outcomes**: a description, never a predictor.
+
+`research_claims.csv`: as `pitch_claims.csv`, for the eleven pre-registered research claims
+R-1 … R-11 (own Holm family). Rendered as `research_claims.md`; full tables in
 `research_summary.md`.
 
 ## Interim files (`data/interim/`, not committed)

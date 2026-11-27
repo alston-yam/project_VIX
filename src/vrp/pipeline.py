@@ -314,7 +314,7 @@ def _update_manifest(cfg: Config, entries: list[dict[str, object]], key: str, in
 
 
 def run_research(cfg: Config) -> None:
-    """Research section: tests R-1…R-9, tables, summary, claims and figures 12–15."""
+    """Research section: tests R-1…R-11, tables, summary, claims and figures 12–17."""
     panel = read_processed(cfg, "daily_panel")
     monthly = read_processed(cfg, "monthly_sample")
     ev = pd.read_csv(cfg.path("processed") / "events.csv", parse_dates=["start_date", "end_date"])
@@ -327,6 +327,8 @@ def run_research(cfg: Config) -> None:
     yr_path = write_csv(res.rv_year, reports / out["rv_by_year"], index_label="year")
     tables_path = write_csv(res.tables, reports / out["tables"], index_label=None)
     roll_path = write_csv(res.rolling, reports / out["rolling"])
+    be_path = write_csv(res.breakeven, reports / out["breakeven"], index_label=None)
+    case_path = write_csv(res.case_paths, reports / out["case_paths"])
     claims = research_report.evaluate_research_claims(res)
     claims_csv = write_csv(claims, reports / out["claims"].replace(".md", ".csv"), index_label=None)
     research_report.write_research_summary(res, claims, reports / out["summary"])
@@ -340,6 +342,8 @@ def run_research(cfg: Config) -> None:
             file_entry(yr_path, res.rv_year, cfg),
             file_entry(tables_path, res.tables, cfg),
             file_entry(roll_path, res.rolling, cfg),
+            file_entry(be_path, res.breakeven, cfg),
+            file_entry(case_path, res.case_paths, cfg),
             file_entry(claims_csv, claims, cfg),
         ],
         "research",

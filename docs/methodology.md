@@ -279,8 +279,9 @@ with the reason and an honest alternative wording. All numbers in the file are g
 ## 10. Research section (`research.py`, `research_report.py`)
 
 `make research` (`--stage research`) answers the research questions in
-[`research_plan.md`](research_plan.md), where the nine tests (R-1 … R-9), their nulls and their
-claimed directions were fixed **before** the results were read.
+[`research_plan.md`](research_plan.md), where the tests (R-1 … R-9, then the step 5 tests
+R-10 and R-11), their nulls and their claimed directions were fixed **before** the results
+were read.
 
 ### 10.1 What is computed
 
@@ -294,16 +295,36 @@ claimed directions were fixed **before** the results were read.
   differences by block bootstrap (R-5 … R-8).
 - **C. Time variation**: linear trend in `payoff_scaled` with Newey–West SE (R-9), and a
   60-month rolling mean (chart only).
+- **D. Is it *too* pessimistic? (step 5)**
+  - *Break-even crash frequency* (R-10 scaled, R-11 raw variance). Take a crash the size of the
+    worst month, L, and let the other months earn g on average. If a share f of months were
+    such crashes the mean payoff would be (1 − f)·g + f·L, which is zero at f\* = g / (g − L).
+    We report f\* as "once every N\* years" next to the observed frequency (k crashes in 36
+    years, exact Poisson CI). The CI on f\* comes from block-bootstrapping g with L held fixed.
+    The claim's p-value is P(N ≤ k) for Poisson crashes arriving at the **lower** CI bound of
+    the break-even rate, a deliberately conservative number. A curve over fixed crash
+    thresholds (`config.yaml`) is chart-only (figure 16).
+  - *Jensen gap* (descriptive). Unconditional √E[RV] − E[√RV] as in the plan, which is an upper
+    bound because it also counts vol moving between months. Conditional version: regress log
+    forward RV on log VIX² and log past RV; with residuals e, E_t[√RV] / √E_t[RV] =
+    mean(e^{e/2}) / √mean(e^e) (Duan smearing, no normality assumed). If VIX² were a fair
+    forecast, mean(VIX)·(1 − ratio) of the spread VIX − realised vol would be convexity; we
+    also report the share of months such a fair VIX would still exceed realised vol,
+    P(e < log mean e^e).
+  - *Case studies* (descriptive): 2020-03 and 2025-04 day by day (figure 17).
 
 Outputs: `research_tables.csv`, `research_summary.md`, `research_claims.md`/`.csv`,
-`research_rv_by_year.csv`, `research_rolling_premium.csv`; figures 12–15.
+`research_rv_by_year.csv`, `research_rolling_premium.csv`, `research_breakeven.csv`,
+`research_case_paths.csv`; figures 12–17.
 
 ### 10.2 No look-ahead in the research section
 
 Section B conditions on `vix_close` and `rv_past21_ann_var` only, both known at the close of t
 (enforced by `require_known_at_t`), with thresholds fixed in `config.yaml` rather than sample
 quantiles, which would use the whole sample. Results are **in-sample descriptions**, not an
-out-of-sample trading rule. Sections A and C describe the past and make no forecast.
+out-of-sample trading rule. Sections A and C describe the past and make no forecast. In
+section D the Jensen forecast uses only `iv_ann_var` and `rv_past21_ann_var` (guarded by
+`require_known_at_t`); the break-even test and the case studies describe outcomes.
 
 ### 10.3 Decisions & assumptions (research)
 
@@ -311,10 +332,11 @@ out-of-sample trading rule. Sections A and C describe the past and make no forec
     or leave gaps between consecutive months, which would distort autocorrelations. Calendar
     months do not overlap; their length varies (15–23 trading days), so each month's sum of
     squared returns is annualised by its own day count.
-26. **Separate Holm family.** The research claims are corrected among themselves (9 claims),
-    not added to the 23 v2 claims, so the v2 verdicts are unchanged. A reader who wants one
-    family of all 32 claims can apply Bonferroni (raw p × 32), which is stricter than Holm;
-    the two supported research claims (R-1, R-2) still pass at that level (raw p ≤ 0.0001).
+26. **Separate Holm family.** The research claims are corrected among themselves (11 claims
+    since step 5), not added to the 23 v2 claims, so the v2 verdicts are unchanged. A reader
+    who wants one family of all 34 claims can apply Bonferroni (raw p × 34), which is stricter
+    than Holm; the three supported research claims (R-1, R-2, R-10) still pass at that level
+    (raw p ≤ 0.0001).
 27. **Trend tests are linear.** A linear trend through spiky, persistent data is a blunt tool;
     R-3 uses 12 Newey–West lags because log RV is persistent, and the ADF result (R-2) shows
     the series is mean-reverting, so a trend regression is not spurious.
@@ -326,4 +348,22 @@ out-of-sample trading rule. Sections A and C describe the past and make no forec
     economics (see `research_plan.md`, "Changes").
 30. **Structural-break test dropped** (26 Nov 2026) for time; the pre/post-2003 comparison
     (v2) and the linear trend (R-9) remain.
+31. **Break-even holds the crash size fixed.** L is the scenario ("a March-2020-sized loss"),
+    not an estimate, so only the ordinary-month mean g is resampled. Resampling L as well
+    would give resamples without the crash month, where the scenario is undefined.
+32. **Break-even is a reframing of the mean, plus one new question.** Because the mean payoff
+    equals (1 − f)·g + f·L, the break-even frequency exceeds the observed one exactly when the
+    mean is positive. What the test adds is the Poisson question: with only k crashes seen,
+    how likely is it that they really come as often as break-even requires? The p-value takes
+    the low end of the break-even rate's CI, so it is conservative.
+33. **Both payoff measures are claims** (R-10 scaled, R-11 raw variance), following the rule of
+    reporting both. Adding them to the research Holm family can only make R-1 … R-9 harder to
+    pass (R-4's Holm p rose from 0.056 to 0.064; no verdict changed).
+34. **Jensen: the conditional estimate is an upper estimate of convexity.** A forecast with only
+    two inputs leaves more residual variance than the market's true conditional variance, and
+    more variance means more convexity. It also assumes the residual distribution is the same
+    every month. The unconditional gap is reported because the plan named it, labelled as an
+    upper bound.
+35. **Case-study VIX percentile** ("higher than 95% of months") ranks the VIX at t against the
+    whole 1990–2025 sample, so it is a description, not something known at t.
 

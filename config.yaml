@@ -136,11 +136,21 @@ research:
   vix_thresholds: [15, 25]       # VIX level at t (vol points): <=15 / 15–25 / >25
   gap_thresholds: [0, 5]         # VIX − past 21-day realised vol at t (vol points)
   rolling_window_months: 60      # rolling mean of the scaled premium (chart only)
+  # Section D (step 5): break-even crash frequency, Jensen gap, case studies.
+  breakeven_thresholds:          # chart curve: a "crash" is a month at or below the threshold;
+    payoff_scaled: [-1.0, -2.0, -3.0, -4.0, -5.0]   # multiples of implied variance
+    payoff_var: [-0.05, -0.1, -0.2, -0.4]           # annualised variance (decimal)
+                                 # the worst month is always added as the headline scenario
+  case_studies: ["2020-03", "2025-04"]
+  case_pre_days: 10              # trading days before t shown on the case-study chart
+  case_big_move_sigma: 3.0       # count days with |r| above k × the VIX-implied daily s.d.
   outputs:
     rv_monthly: "rv_calendar_month.csv"   # written to paths.processed
     rv_by_year: "research_rv_by_year.csv" # written to paths.reports
     tables: "research_tables.csv"
     rolling: "research_rolling_premium.csv"
+    breakeven: "research_breakeven.csv"
+    case_paths: "research_case_paths.csv"
     summary: "research_summary.md"
     claims: "research_claims.md"
 

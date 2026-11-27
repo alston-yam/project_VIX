@@ -919,14 +919,188 @@ def fig_rolling_premium(
     return save(fig, "15_rolling_premium", cfg)
 
 
+def _years(rate: np.ndarray) -> np.ndarray:
+    """Rate per year → years between events (inf for a zero rate)."""
+    rate = np.asarray(rate, dtype=float)
+    with np.errstate(divide="ignore"):
+        return np.where(rate > 0, 1 / rate, np.inf)
+
+
+def fig_breakeven(res: object, claims: pd.DataFrame, cfg: Config) -> list[Path]:
+    """16: years between crashes needed to break even vs years between crashes observed."""
+    curve = res.breakeven  # type: ignore[attr-defined]
+    cl = claims.set_index("id")
+    panels = [
+        ("payoff_scaled", "Scaled payoff (share of implied variance)", "R-10"),
+        ("payoff_var", "Raw variance payoff (annualised variance)", "R-11"),
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.6), sharey=True)
+    top = 1.0
+    for ax, (col, label, cid) in zip(axes, panels, strict=True):
+        c = curve[curve["measure"] == col].sort_values("threshold", ascending=False)
+        x = np.arange(len(c))
+        be, be_lo, be_hi = (
+            _years(c[k]) for k in ("breakeven_rate", "breakeven_rate_hi", "breakeven_rate_lo")
+        )
+        ob, ob_lo, ob_hi = (
+            _years(c[k]) for k in ("observed_rate", "observed_rate_hi", "observed_rate_lo")
+        )
+        ax.errorbar(
+            x - 0.12,
+            be,
+            yerr=[be - be_lo, be_hi - be],
+            fmt="o",
+            ms=7,
+            capsize=4,
+            color=COLORS["implied"],
+            label="Break-even: crash needed once every … years",
+        )
+        ax.errorbar(
+            x + 0.12,
+            ob,
+            yerr=[ob - ob_lo, ob_hi - ob],
+            fmt="s",
+            ms=7,
+            capsize=4,
+            color=COLORS["realised"],
+            label="Observed: one crash every … years",
+        )
+        top = max(top, float(np.nanmax(ob_hi[np.isfinite(ob_hi)])))
+        ax.set_yscale("log")
+        ticks = [
+            f"≤ {t:.3g}".replace("-", "\u2212") + (f"\n(worst: {m})" if w else "")
+            for t, w, m in zip(c["threshold"], c["is_worst"], c["worst_month"], strict=True)
+        ]
+        ax.set_xticks(x, ticks, fontsize=9)
+        ax.set_xlabel(f"Crash = month with payoff at or below … ({label.split(' (')[0].lower()})")
+        r = cl.loc[cid]
+        verdict = "supported" if r["supported"] else "not supported"
+        ax.set_title(f"{label}\n{cid} {verdict} (Holm-adjusted p = {r['p_holm']:.2g})", fontsize=11)
+        ax.grid(axis="x", visible=False)
+    axes[0].set_ylabel("Years between crashes (log scale)")
+    axes[0].yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    axes[0].set_ylim(0.3, top * 2)
+    axes[0].legend(loc="upper left", fontsize=9)
+    fig.suptitle(
+        "How often would crashes have to happen to wipe out the premium?",
+        fontweight="bold",
+        fontsize=13,
+        y=1.02,
+    )
+    _foot_wrapped(
+        fig,
+        cfg["plots"]["source_note"] + f". {SIGN_FOOT} Break-even: a share g / (g − L) of "
+        "months would have to be crashes of the mean size L for the mean payoff to be zero "
+        "(g = mean of the other months; 95% CI from the block bootstrap). Observed: crashes "
+        "seen in the sample, exact Poisson 95% CI. A blue point below the whole orange bar = "
+        "the premium covers crashes of that size even if they are as frequent as the data allow.",
+    )
+    return save(fig, "16_breakeven", cfg)
+
+
+def fig_case_studies(res: object, cfg: Config) -> list[Path]:
+    """17: the two case-study months day by day: S&P, VIX, accrued realised vs implied variance."""
+    paths = res.case_paths  # type: ignore[attr-defined]
+    t = res.tables  # type: ignore[attr-defined]
+    cases = list(paths["case"].drop_duplicates())
+    h = cfg.window
+    fig, axes = plt.subplots(
+        3, len(cases), figsize=(12.5, 8.6), sharex=True, sharey="row", squeeze=False
+    )
+    for j, case in enumerate(cases):
+        p = paths[paths["case"] == case]
+        d = p["day"].to_numpy()
+        a0, a1, a2 = axes[0, j], axes[1, j], axes[2, j]
+        a0.plot(d, 100 * (p["spx_rel"] - 1), color=COLORS["ink"])
+        a0.axhline(0, color=COLORS["ink2"], lw=0.8)
+        a1.plot(d, p["vix_close"], color=COLORS["implied"], label="VIX")
+        a1.axhline(
+            float(p.loc[p["day"] == 0, "vix_close"].iloc[0]),
+            color=COLORS["implied"],
+            ls=":",
+            lw=1.1,
+            label="VIX at t (the implied vol sold)",
+        )
+        acc = p["accrued_over_implied"]
+        a2.fill_between(d, 0, acc, where=d >= 0, color=COLORS["realised"], alpha=0.25, lw=0)
+        a2.plot(d, acc, color=COLORS["realised"], label="Realised variance accrued so far")
+        a2.axhline(
+            1,
+            color=COLORS["implied"],
+            ls="--",
+            lw=1.2,
+            label="Implied variance sold at t",
+        )
+
+        def get(stat: str, case: str = case) -> float:
+            m = (t["test"] == "R_case") & (t["sample"] == case) & (t["statistic"] == stat)
+            return float(t.loc[m, "estimate"].iloc[0])
+
+        gone = get("premium_gone_by_day")
+        if np.isfinite(gone):
+            a2.axvline(gone, color=COLORS["loss"], lw=1, ls=":")
+            a2.annotate(
+                f"premium gone\nby day {gone:.0f}",
+                (gone, 1),
+                xytext=(6, 18),
+                textcoords="offset points",
+                fontsize=8.5,
+                color=COLORS["loss"],
+                bbox={"fc": "white", "ec": "none", "alpha": 0.85, "pad": 1.5},
+            )
+        a2.annotate(
+            f"day {h}: {acc.iloc[-1]:.1f}× implied\nscaled payoff "
+            f"{get('payoff_scaled'):.1f}".replace("-", "\u2212"),
+            (d[-1], acc.iloc[-1]),
+            xytext=(-14, -16),
+            textcoords="offset points",
+            bbox={"fc": "white", "ec": "none", "alpha": 0.85, "pad": 1.5},
+            ha="right",
+            va="top",
+            fontsize=8.5,
+        )
+        for ax in (a0, a1, a2):
+            ax.axvline(0, color=COLORS["ink2"], lw=0.9)
+            ax.axvspan(0.5, h + 0.5, color=COLORS["grid"], alpha=0.35, lw=0)
+        label = pd.Period(case, "M").strftime("%B %Y")
+        a0.set_title(
+            f"{label}: VIX {get('vix_at_t'):.1f} at t, realised vol "
+            f"{get('realised_vol_fwd'):.0f} over the next {h} days",
+            fontsize=11,
+        )
+        a2.set_xlabel("Trading days from t")
+    axes[0, 0].set_ylabel("S&P 500 vs close at t (%)")
+    axes[1, 0].set_ylabel("VIX (vol points)")
+    axes[2, 0].set_ylabel("Realised ÷ implied variance (×)")
+    axes[1, 0].legend(loc="upper left", fontsize=8.5)
+    axes[2, 0].legend(loc="upper left", fontsize=8.5)
+    for a in axes[2]:
+        a.set_ylim(0, None)
+    fig.suptitle(
+        "Case studies: how the seller's premium disappeared", fontweight="bold", fontsize=13, y=1.0
+    )
+    fig.tight_layout()
+    _foot_wrapped(
+        fig,
+        cfg["plots"]["source_note"] + f". {SIGN_FOOT} t = first trading day of the month; "
+        f"shaded = the {h}-day window. Realised variance accrued by day k = "
+        f"({cfg.annualisation} / {h})·Σ r² over days 1…k, so on day {h} it is the month's "
+        "realised variance; dividing by the implied variance at t gives 1 − scaled payoff. "
+        "Outcomes after t: a description of what happened, not a signal.",
+    )
+    return save(fig, "17_case_studies", cfg)
+
+
 def make_research_figures(
     res: object, monthly: pd.DataFrame, events: pd.DataFrame, claims: pd.DataFrame, cfg: Config
 ) -> list[Path]:
-    """Draw research figures 12–15 from a ``vrp.research.ResearchResults``."""
+    """Draw research figures 12–17 from a ``vrp.research.ResearchResults``."""
     apply_style()
     paths: list[Path] = []
     paths += fig_rv_dynamics(res, events, cfg)
     paths += fig_rv_by_year(res, cfg)
     paths += fig_conditional_premium(res, cfg)
     paths += fig_rolling_premium(res, monthly, events, claims, cfg)
+    paths += fig_breakeven(res, claims, cfg)
+    paths += fig_case_studies(res, cfg)
     return paths

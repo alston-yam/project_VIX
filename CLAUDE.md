@@ -38,7 +38,7 @@ make all        # download (cached) → clean → features → sample → events
 | `make data` | data stage: `python -m vrp.pipeline --stage data` |
 | `make refresh` | data stage with fresh downloads (`--refresh`) |
 | `make figures` | figures from processed data |
-| `make stats` / `make research` | v2 tests / research section (figures 12–15) |
+| `make stats` / `make research` | v2 tests / research section (figures 12–17) |
 | `make deck` | pitch deck → `deck/VIX_pitch.pptx` (needs python-pptx) |
 | `make test` | `pytest` (must pass before any commit) |
 | `make lint` / `make format` | black + ruff check / fix (line length 100) |
@@ -202,7 +202,10 @@ helpers), a `--stage deck` stage, and write to `outputs/figures/deck/`.
   raw-variance mean post-2003 (NW p ≈ 0.08), and the post- vs pre-2003 difference after Holm.
   Read the claims file before quoting any v2 number.
 - **Research (`make research`, branch `research`):** tests pre-registered in
-  `docs/research_plan.md` (R-1 … R-9, their own Holm family). Read
+  `docs/research_plan.md` (R-1 … R-11, their own Holm family; 3 of 11 pass: vol clusters,
+  vol mean-reverts, and the break-even test R-10, i.e. a March-2020-sized loss would have to
+  hit about every 2 years to wipe out the scaled premium). Step 5 (break-even, Jensen gap,
+  case studies 2020-03 / 2025-04) is in section D of `research.py`. Read
   `outputs/reports/research_claims.md` before quoting any research number. Teammates' brief
   and the model → strategy handoff file (`rv_forecast.csv`, `rv_hat_ann_var`) are in
   `docs/team_brief.md`.

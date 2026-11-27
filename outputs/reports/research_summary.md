@@ -11,14 +11,16 @@ Pre-registered tests: `docs/research_plan.md`. Claims verdicts: `research_claims
 | id | verdict | p_holm | claim |
 |---|---|---|---|
 | R-1 | ✅ supported | ≤ 0.0001 | Volatility clusters: a high-vol month tends to be followed by another (AR(1) coefficient of monthly log realised variance 0.6739, 95% CI 0.5816 to 0.7662). |
-| R-2 | ✅ supported | 0.00043 | Volatility shocks fade: realised variance is mean-reverting (augmented Dickey–Fuller statistic -4.803 rejects a unit root). |
+| R-2 | ✅ supported | 0.000484 | Volatility shocks fade: realised variance is mean-reverting (augmented Dickey–Fuller statistic -4.803 rejects a unit root). |
 | R-3 | ❌ not supported | 0.82 | Realised volatility has risen gradually since 1990 (trend in log realised variance 0.004207 per year, 95% CI -0.01426 to 0.02267). |
-| R-4 | ❌ not supported | 0.056 | Volatility jumps up faster than it falls: month-to-month changes in log realised variance are positively skewed (skewness 0.3437, 95% CI 0.09281 to 0.6042). |
+| R-4 | ❌ not supported | 0.064 | Volatility jumps up faster than it falls: month-to-month changes in log realised variance are positively skewed (skewness 0.3437, 95% CI 0.09281 to 0.6042). |
 | R-5 | ❌ not supported | 0.82 | In raw variance the seller earns more when the VIX starts high: VIX > 25 months pay 0.01438 more than VIX ≤ 15 months (95% CI -0.01558 to 0.03655). |
 | R-6 | ❌ not supported | 0.82 | As a share of implied variance the premium is smaller when the VIX starts high: VIX > 25 minus VIX ≤ 15 = -12.5% (95% CI -41.4% to 11.7%). |
-| R-7 | ❌ not supported | 0.40 | Even when the VIX starts high (VIX > 25) the seller wins on average: mean scaled payoff 19.0% (95% CI -2.3% to 40.4%). |
+| R-7 | ❌ not supported | 0.45 | Even when the VIX starts high (VIX > 25) the seller wins on average: mean scaled payoff 19.0% (95% CI -2.3% to 40.4%). |
 | R-8 | ❌ not supported | 0.52 | The premium is larger when the VIX sits well above recent realised vol: gap > 5 pts months pay 19.1% of implied variance more than gap ≤ 0 pts months (95% CI -4.1% to 45.1%). |
-| R-9 | ❌ not supported | 0.0781 | The scaled premium has shrunk over time: linear trend -0.8% of implied variance per year (95% CI -1.5% to -0.2%). |
+| R-9 | ❌ not supported | 0.0911 | The scaled premium has shrunk over time: linear trend -0.8% of implied variance per year (95% CI -1.5% to -0.2%). |
+| R-10 | ✅ supported | ≤ 0.0001 | The premium more than pays for crashes: for the seller to break even, a loss the size of March 2020 would have to strike once every 1.871 years (95% CI 1.563 to 2.441), measured as a share of implied variance; it struck once in 36 years. |
+| R-11 | ❌ not supported | 0.45 | In raw variance too, break-even needs a loss the size of March 2020 once every 4.993 years (95% CI 3.75 to 8.46); it struck once in 36 years. |
 
 ## A. Realised-volatility dynamics (calendar-month realised variance, logs)
 
@@ -126,3 +128,78 @@ Buckets use fixed thresholds from `config.yaml`: VIX (15.0, 25.0); gap = VIX −
 | payoff_scaled | monthly 1990–2025 | trend_slope_per_year | -0.008324 | [-0.01489, -0.001755] | Newey–West (6 lags) | 0 | HAC z, z = -2.48 | 0.013 | 432 | fitted value 1990: 0.4506; 2025: 0.1516 |
 
 Rolling 60-month mean of the scaled payoff (chart only; windows overlap): latest 29.9% (window ending 2025-12); highest 52.7% (ending 1995-10); lowest 3.7% (ending 2020-06).
+
+## D. Break-even crash frequency, Jensen gap, case studies
+
+### Break-even: how often would a crash this size have to happen?
+
+Scenario: a loss the size of the worst month, L (held fixed). Ordinary months earn g. The mean payoff is zero when a share f* = g / (g − L) of months are such crashes; rates are per year. The CI on the break-even rate resamples the ordinary months (block bootstrap). The p-value is the exact Poisson probability of seeing no more crashes than we did if they arrived at the *low* end of that CI (conservative).
+
+| measure | sample | statistic | estimate | 95% CI | CI method | H0 | test | p (two-sided) | n | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| payoff_var | monthly 1990–2025 | crash_size | -0.7609 |  |  |  |  |  | 1 | worst month 2020-03 (the scenario; held fixed) |
+| payoff_var | monthly 1990–2025 | ordinary_mean | 0.01292 | [0.007569, 0.01729] | block bootstrap (6-month blocks) |  |  |  | 431 | mean payoff of every other month |
+| payoff_var | monthly 1990–2025 | breakeven_rate_per_year | 0.2003 | [0.1182, 0.2667] | block bootstrap (6-month blocks) |  |  |  | 432 |  |
+| payoff_var | monthly 1990–2025 | observed_rate_per_year | 0.02778 | [7.033e-04, 0.1548] | exact Poisson (Garwood) |  |  |  | 432 | 1 crash(es) of this size in 36 years |
+| payoff_var | monthly 1990–2025 | breakeven_years_between | 4.993 | [3.75, 8.46] | block bootstrap (6-month blocks) | 36 | one-sided exact Poisson P(N ≤ observed) at the lower CI bound of the break-even rate (conservative) | 0.0746 | 432 | observed: 1 in 36 years (once every 36 years; 95% CI once every 6.5 to 1422 years) |
+| payoff_var | monthly 1990–2025 | breakeven_crashes_in_sample | 7.211 |  |  |  |  |  | 432 | crashes of this size the sample would have needed (observed 1) |
+| payoff_var | monthly 1990–2025 | months_of_premium_per_crash | 58.91 |  |  |  |  |  | 432 | one crash wipes out this many ordinary months' average payoff |
+| payoff_scaled | monthly 1990–2025 | crash_size | -6.812 |  |  |  |  |  | 1 | worst month 2020-03 (the scenario; held fixed) |
+| payoff_scaled | monthly 1990–2025 | ordinary_mean | 0.3176 | [0.2408, 0.3836] | block bootstrap (6-month blocks) |  |  |  | 431 | mean payoff of every other month |
+| payoff_scaled | monthly 1990–2025 | breakeven_rate_per_year | 0.5346 | [0.4097, 0.6396] | block bootstrap (6-month blocks) |  |  |  | 432 |  |
+| payoff_scaled | monthly 1990–2025 | observed_rate_per_year | 0.02778 | [7.033e-04, 0.1548] | exact Poisson (Garwood) |  |  |  | 432 | 1 crash(es) of this size in 36 years |
+| payoff_scaled | monthly 1990–2025 | breakeven_years_between | 1.871 | [1.563, 2.441] | block bootstrap (6-month blocks) | 36 | one-sided exact Poisson P(N ≤ observed) at the lower CI bound of the break-even rate (conservative) | 6.2e-06 | 432 | observed: 1 in 36 years (once every 36 years; 95% CI once every 6.5 to 1422 years) |
+| payoff_scaled | monthly 1990–2025 | breakeven_crashes_in_sample | 19.24 |  |  |  |  |  | 432 | crashes of this size the sample would have needed (observed 1) |
+| payoff_scaled | monthly 1990–2025 | months_of_premium_per_crash | 21.45 |  |  |  |  |  | 432 | one crash wipes out this many ordinary months' average payoff |
+
+Curve for the chart (crash = month at or below the threshold; L is then the mean of those months):
+
+| measure | crash = payoff ≤ | crashes seen | mean crash L | ordinary mean g | break-even: once every … years [95% CI] | observed: once every … years [95% CI] | conservative p |
+|---|---|---|---|---|---|---|---|
+| payoff_var | -0.7609 (worst month) | 1 | -0.7609 | 0.01292 | 5.0 [3.7, 8.5] | 36.0 [6.5, 1421.9] | 0.0746 |
+| payoff_var | -0.4 | 2 | -0.6435 | 0.01417 | 3.9 [3.1, 5.1] | 18.0 [5.0, 148.6] | 0.0294 |
+| payoff_var | -0.2 | 4 | -0.4534 | 0.01547 | 2.5 [2.1, 3.2] | 9.0 [3.5, 33.0] | 0.013 |
+| payoff_var | -0.1 | 7 | -0.325 | 0.01666 | 1.7 [1.4, 2.1] | 5.1 [2.5, 12.8] | 0.00479 |
+| payoff_var | -0.05 | 14 | -0.1959 | 0.01806 | 1.0 [0.8, 1.2] | 2.6 [1.5, 4.7] | 0.000772 |
+| payoff_scaled | -6.812 (worst month) | 1 | -6.812 | 0.3176 | 1.9 [1.6, 2.4] | 36.0 [6.5, 1421.9] | 6.2e-06 |
+| payoff_scaled | -5 | 2 | -5.956 | 0.3302 | 1.6 [1.4, 1.9] | 18.0 [5.0, 148.6] | 1.7e-06 |
+| payoff_scaled | -4 | 3 | -5.356 | 0.3407 | 1.4 [1.2, 1.7] | 12.0 [4.1, 58.2] | 9.6e-07 |
+| payoff_scaled | -3 | 6 | -4.396 | 0.3673 | 1.1 [1.0, 1.2] | 6.0 [2.8, 16.3] | 2.6e-07 |
+| payoff_scaled | -2 | 10 | -3.722 | 0.3964 | 0.9 [0.8, 1.0] | 3.6 [2.0, 7.5] | 9.1e-08 |
+| payoff_scaled | -1 | 13 | -3.192 | 0.4095 | 0.7 [0.7, 0.8] | 2.8 [1.6, 5.2] | 2.0e-08 |
+
+### Jensen gap: how much of 'VIX above realised vol' is convexity?
+
+The VIX prices variance, so even a VIX with zero premium sits above the realised vol that follows on average (√ is concave). Conditional version: regress log forward RV on log VIX² and log past RV (both known at t); the residuals give E_t[√RV] / √E_t[RV] without assuming normality (smearing). A larger residual variance means more convexity, so a forecast that uses only these two inputs overstates it: the share is an upper estimate. Descriptive; block bootstrap CIs.
+
+| measure | sample | statistic | estimate | 95% CI | CI method | H0 | test | p (two-sided) | n | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| vol_spread_pts | monthly 1990–2025 | mean | 4.192 | [3.405, 4.951] | block bootstrap (6-month blocks) |  |  |  | 431 | mean VIX − realised vol (vol points) |
+| vol_spread_pts | monthly 1990–2025 | share_vix_above_realised | 0.8399 | [0.8028, 0.877] | block bootstrap (6-month blocks) |  |  |  | 431 |  |
+| rv_fwd21 | monthly 1990–2025 | uncond_jensen_gap_pts | 2.753 | [1.507, 4.092] | block bootstrap (6-month blocks) |  |  |  | 431 | √E[RV] − E[√RV]; an upper bound (also counts vol moving between months) |
+| rv_fwd21 | monthly 1990–2025 | cond_convexity_pts | 1.319 | [0.9393, 1.701] | block bootstrap (6-month blocks) |  |  |  | 431 | mean(VIX)·(1 − E_t√RV/√E_tRV); log-RV forecast R² 0.54, residual var 0.432 |
+| rv_fwd21 | monthly 1990–2025 | cond_convexity_share_of_spread | 0.3147 | [0.201, 0.4699] | block bootstrap (6-month blocks) |  |  |  | 431 |  |
+| rv_fwd21 | monthly 1990–2025 | fair_vix_share_above_realised | 0.6914 | [0.6381, 0.7401] | block bootstrap (6-month blocks) |  |  |  | 431 | share of months a VIX with zero premium (VIX² = E_t[RV]) would still beat realised vol |
+| rv_fwd21 | monthly 1990–2025 | cond_vol_ratio | 0.9325 |  |  |  |  |  | 431 | E_t[√RV] / √E_t[RV] by smearing; lognormal check exp(−σ²/8) = 0.9474 |
+
+### Case studies
+
+| statistic | 2020-03 | 2025-04 | note |
+|---|---|---|---|
+| vix_at_t | 33.42 (t = 2020-03-02) | 21.77 (t = 2025-04-01) |  |
+| vix_at_t_percentile | 0.9537 | 0.6944 | share of sample months with a lower VIX at t (descriptive, full sample) |
+| past_rv_vol_at_t | 29.55 | 19.78 | vol points |
+| realised_vol_fwd | 93.41 | 47.69 | vol points |
+| payoff_var | -0.7609 | -0.18 |  |
+| payoff_scaled | -6.812 | -3.798 |  |
+| payoff_scaled_rank | 1 | 4 | 1 = worst of 432 months |
+| spx_return_window | -0.1636 | -0.005136 | simple return |
+| spx_max_drawdown_window | -0.276 | -0.1154 | vs the close at t |
+| vix_max_window | 82.69 (on 2020-03-16) | 52.33 (on 2025-04-08) |  |
+| largest_daily_move | -0.1277 (log return on 2020-03-16) | 0.09089 (log return on 2025-04-09) |  |
+| big_move_days | 5 (days with an absolute return above 3× the VIX-implied daily s.d. (2.11%), of 21) | 3 (days with an absolute return above 3× the VIX-implied daily s.d. (1.37%), of 21) |  |
+| premium_gone_by_day | 5 | 3 | first trading day the accrued realised variance exceeded the implied variance |
+| months_of_premium_lost | 21.45 | 12.23 | loss ÷ mean scaled payoff of all other months |
+| months_to_recover | 12 | 6 | until cumulative scaled payoff from this month is ≥ 0 (nan = not by sample end) |
+
+Daily paths: `research_case_paths.csv` (day 0 = t; accrued realised variance on the swap's scale, so day 21 equals the month's forward realised variance).

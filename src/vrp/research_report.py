@@ -1,8 +1,9 @@
 """Markdown outputs for the research section: ``research_summary.md`` and ``research_claims.md``.
 
-The nine claims below are the tests pre-registered in ``docs/research_plan.md`` (R-1 … R-9).
-They form their own Holm family, separate from the 23 v2 claims, and use the same rule: every
-CI excludes the null in the claimed direction and the Holm-adjusted p is below alpha.
+The claims below are the tests pre-registered in ``docs/research_plan.md`` (R-1 … R-9, and the
+step 5 break-even tests R-10 / R-11). They form their own Holm family, separate from the 23 v2
+claims, and use the same rule: every CI excludes the null in the claimed direction and the
+Holm-adjusted p is below alpha.
 """
 
 from __future__ import annotations
@@ -13,16 +14,51 @@ import pandas as pd
 
 from vrp.logging_setup import get_logger
 from vrp.research import CAL_SAMPLE, MONTHLY_SAMPLE, ResearchResults, bucket_labels
-from vrp.stats_report import SIGN_NOTE, ClaimSpec, Evidence, evaluate_specs, fmt_p, pct, tidy
+from vrp.stats_report import (
+    SIGN_NOTE,
+    ClaimSpec,
+    Evidence,
+    evaluate_specs,
+    fmt,
+    fmt_p,
+    pct,
+    tidy,
+)
 from vrp.validate import df_to_md
 
 log = get_logger(__name__)
+
+
+def _observed_text(res: ResearchResults, measure: str) -> tuple[str, str]:
+    """('March 2020', 'once in 36 years') for the worst-month break-even scenario of ``measure``."""
+    c = res.breakeven[(res.breakeven["measure"] == measure) & res.breakeven["is_worst"]].iloc[0]
+    k = int(c["n_crash"])
+    times = "once" if k == 1 else f"{k} times"
+    label = pd.Period(str(c["worst_month"]), "M").strftime("%B %Y")
+    return label, f"{times} in {c['years']:.0f} years"
 
 
 def research_specs(res: ResearchResults) -> list[ClaimSpec]:
     """The pre-registered research claims, each tied to rows of ``res.tables``."""
     E = Evidence
     rs = res.research
+    worst_s, obs_s = _observed_text(res, "payoff_scaled")
+    worst_v, obs_v = _observed_text(res, "payoff_var")
+    t = res.tables
+    be_v = float(
+        t.loc[
+            (t["test"] == "R_breakeven")
+            & (t["measure"] == "payoff_var")
+            & (t["statistic"] == "breakeven_years_between"),
+            "estimate",
+        ].iloc[0]
+    )
+    be_caveat = (
+        "In-sample. By construction the break-even frequency exceeds the observed one whenever "
+        "the mean payoff is positive; the test asks how unlucky we would have to have been to "
+        "see so few crashes. 1987 is outside the sample, and a crash bigger than any seen "
+        "since 1990 would change the answer."
+    )
     vix = bucket_labels("VIX", rs.vix_thresholds, "")
     gap = bucket_labels("gap", rs.gap_thresholds, " pts")
     dyn = {"sample": CAL_SAMPLE}
@@ -147,11 +183,80 @@ def research_specs(res: ResearchResults) -> list[ClaimSpec]:
             fallback="Say: there is no significant evidence that the premium is shrinking once "
             "we correct for multiple testing.",
         ),
+        ClaimSpec(
+            "R-10",
+            "D",
+            f"The premium more than pays for crashes: for the seller to break even, a loss the "
+            f"size of {worst_s} would have to strike once every {{est}} years (95% CI {{lo}} to "
+            f"{{hi}}), measured as a share of implied variance; it struck {obs_s}.",
+            "<",
+            (E("R_breakeven", "payoff_scaled", "breakeven_years_between", MONTHLY_SAMPLE),),
+            caveat=be_caveat,
+        ),
+        ClaimSpec(
+            "R-11",
+            "D",
+            f"In raw variance too, break-even needs a loss the size of {worst_v} once every "
+            f"{{est}} years (95% CI {{lo}} to {{hi}}); it struck {obs_v}.",
+            "<",
+            (E("R_breakeven", "payoff_var", "breakeven_years_between", MONTHLY_SAMPLE),),
+            caveat=be_caveat,
+            fallback=f"Say: in raw variance the margin is thinner: break-even needs a "
+            f"{worst_v}-sized loss about every {be_v:.0f} years against {obs_v}; with so few "
+            "crashes observed we cannot rule out that they are that frequent.",
+        ),
     ]
 
 
+def _curve_table(c: pd.DataFrame) -> pd.DataFrame:
+    """Break-even curve → display table (years between crashes)."""
+
+    def yrs(rate: float) -> str:
+        return "∞" if rate <= 0 else f"{1 / rate:.1f}"
+
+    return pd.DataFrame(
+        {
+            "measure": c["measure"],
+            "crash = payoff ≤": [
+                f"{v:.4g}" + (" (worst month)" if w else "")
+                for v, w in zip(c["threshold"], c["is_worst"], strict=True)
+            ],
+            "crashes seen": c["n_crash"],
+            "mean crash L": c["crash_mean"].map(fmt),
+            "ordinary mean g": c["ordinary_mean"].map(fmt),
+            "break-even: once every … years [95% CI]": [
+                f"{yrs(r)} [{yrs(h)}, {yrs(lo)}]"
+                for r, lo, h in zip(
+                    c["breakeven_rate"], c["breakeven_rate_lo"], c["breakeven_rate_hi"], strict=True
+                )
+            ],
+            "observed: once every … years [95% CI]": [
+                f"{yrs(r)} [{yrs(h)}, {yrs(lo)}]"
+                for r, lo, h in zip(
+                    c["observed_rate"], c["observed_rate_lo"], c["observed_rate_hi"], strict=True
+                )
+            ],
+            "conservative p": c["p_conservative"].map(lambda p: fmt_p(p)),
+        }
+    )
+
+
+def _case_table(t: pd.DataFrame) -> pd.DataFrame:
+    """Case-study rows → one column per month; month-specific notes go into the cell."""
+    out = []
+    for stat, g in t.groupby("statistic", sort=False):
+        notes = g["note"].fillna("")
+        specific = notes.nunique() > 1
+        rec = {"statistic": stat, "note": "" if specific else notes.iloc[0]}
+        for r in g.itertuples():
+            rec[r.sample] = fmt(r.estimate) + (f" ({r.note})" if specific and r.note else "")
+        out.append(rec)
+    df = pd.DataFrame(out)
+    return df[["statistic"] + list(t["sample"].drop_duplicates()) + ["note"]]
+
+
 def evaluate_research_claims(res: ResearchResults) -> pd.DataFrame:
-    """Check the nine research claims (own Holm family)."""
+    """Check the research claims (own Holm family)."""
     s = res.settings
     specs = research_specs(res)
     return evaluate_specs(specs, res.tables, [c.cid for c in specs], s.alpha, 1 / (s.n_boot + 1))
@@ -278,6 +383,41 @@ def write_research_summary(res: ResearchResults, claims: pd.DataFrame, path: Pat
         f"overlap): latest {pct(last['mean'])} (window ending {last.name:%Y-%m}); highest "
         f"{pct(res.rolling['mean'].max())} (ending {hi_roll:%Y-%m}); lowest "
         f"{pct(res.rolling['mean'].min())} (ending {lo_roll:%Y-%m}).",
+        "",
+        "## D. Break-even crash frequency, Jensen gap, case studies",
+        "",
+        "### Break-even: how often would a crash this size have to happen?",
+        "",
+        "Scenario: a loss the size of the worst month, L (held fixed). Ordinary months earn g. "
+        "The mean payoff is zero when a share f* = g / (g − L) of months are such crashes; "
+        "rates are per year. The CI on the break-even rate resamples the ordinary months "
+        "(block bootstrap). The p-value is the exact Poisson probability of seeing no more "
+        "crashes than we did if they arrived at the *low* end of that CI (conservative).",
+        "",
+        df_to_md(tidy(t[t["test"] == "R_breakeven"], floor)),
+        "",
+        "Curve for the chart (crash = month at or below the threshold; L is then the mean of "
+        "those months):",
+        "",
+        df_to_md(_curve_table(res.breakeven)),
+        "",
+        "### Jensen gap: how much of 'VIX above realised vol' is convexity?",
+        "",
+        "The VIX prices variance, so even a VIX with zero premium sits above the realised vol "
+        "that follows on average (√ is concave). Conditional version: regress log forward RV on "
+        "log VIX² and log past RV (both known at t); the residuals give E_t[√RV] / √E_t[RV] "
+        "without assuming normality (smearing). A larger residual variance means more "
+        "convexity, so a forecast that uses only these two inputs overstates it: the share is "
+        "an upper estimate. Descriptive; block bootstrap CIs.",
+        "",
+        df_to_md(tidy(t[t["test"] == "R_jensen"], floor)),
+        "",
+        "### Case studies",
+        "",
+        df_to_md(_case_table(t[t["test"] == "R_case"])),
+        "",
+        "Daily paths: `research_case_paths.csv` (day 0 = t; accrued realised variance on the "
+        "swap's scale, so day 21 equals the month's forward realised variance).",
         "",
     ]
     path.write_text("\n".join(L), encoding="utf-8")

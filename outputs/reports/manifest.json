@@ -1,7 +1,7 @@
 {
-  "generated_utc": "2026-11-27T00:06:57+00:00",
+  "generated_utc": "2026-11-27T21:27:13+00:00",
   "git": {
-    "commit": "341386d8f21a063774d2a7d2b4a1b80b3d567c1f",
+    "commit": "04d5eb5b9372214dab9dc3e235f7404a318de4d9",
     "code_dirty": true
   },
   "config": {
@@ -166,89 +166,6 @@
       "sha256": "5a49d0725e091ccc34c266bd33650f9afd98e10e68c4cc4192b6277ba1cde25f"
     },
     {
-      "path": "data/processed/rv_calendar_month.csv",
-      "rows": 432,
-      "columns": [
-        "n_days",
-        "rv_cal_ann_var",
-        "rv_cal_ann_vol_pct"
-      ],
-      "first_date": "1990-01-01",
-      "last_date": "2025-12-01",
-      "sha256": "9ae2bb4a43faabdc9ccf228e82e5f5c8c2b2aeab338c93b01a7221f3836365a1"
-    },
-    {
-      "path": "outputs/reports/research_rv_by_year.csv",
-      "rows": 36,
-      "columns": [
-        "n_days",
-        "rv_ann_vol_pct",
-        "vol_of_vol_log",
-        "max_month_vol_pct",
-        "min_month_vol_pct",
-        "rank_irregular"
-      ],
-      "first_date": null,
-      "last_date": null,
-      "sha256": "688c956c768adc422accc01ea21c3e2ea80c8d24f9d3b270d7363650fb9b472b"
-    },
-    {
-      "path": "outputs/reports/research_tables.csv",
-      "rows": 42,
-      "columns": [
-        "test",
-        "measure",
-        "sample",
-        "statistic",
-        "estimate",
-        "ci_low",
-        "ci_high",
-        "ci_method",
-        "null_value",
-        "test_name",
-        "p_value",
-        "n",
-        "note"
-      ],
-      "first_date": null,
-      "last_date": null,
-      "sha256": "dffadd0288c8ea7ff8bba7c0acf6a06251b741b6effccf7ee5beab6f11ebfd6b"
-    },
-    {
-      "path": "outputs/reports/research_rolling_premium.csv",
-      "rows": 373,
-      "columns": [
-        "mean",
-        "ci_low",
-        "ci_high",
-        "measure",
-        "window_months"
-      ],
-      "first_date": "1994-12-01",
-      "last_date": "2025-12-01",
-      "sha256": "66d2d7f5693c3197dc0f41ccc325b99b254129f2933ea0ed7c36071e38a0a3b4"
-    },
-    {
-      "path": "outputs/reports/research_claims.csv",
-      "rows": 9,
-      "columns": [
-        "id",
-        "test",
-        "claim",
-        "p_max",
-        "ci_ok",
-        "reasons",
-        "evidence",
-        "caveat",
-        "fallback",
-        "p_holm",
-        "supported"
-      ],
-      "first_date": null,
-      "last_date": null,
-      "sha256": "5487ffca38abd8a6f09712eb9c8e6cf524c7bd8f6af800c7db56162837f7634a"
-    },
-    {
       "path": "data/processed/monthly_variants.csv",
       "rows": 432,
       "columns": [
@@ -331,12 +248,140 @@
       "first_date": null,
       "last_date": null,
       "sha256": "3f23082079c1ece93a5af57622b3584a7d55868b09289cb552ec16bc287dcbbd"
+    },
+    {
+      "path": "data/processed/rv_calendar_month.csv",
+      "rows": 432,
+      "columns": [
+        "n_days",
+        "rv_cal_ann_var",
+        "rv_cal_ann_vol_pct"
+      ],
+      "first_date": "1990-01-01",
+      "last_date": "2025-12-01",
+      "sha256": "9ae2bb4a43faabdc9ccf228e82e5f5c8c2b2aeab338c93b01a7221f3836365a1"
+    },
+    {
+      "path": "outputs/reports/research_rv_by_year.csv",
+      "rows": 36,
+      "columns": [
+        "n_days",
+        "rv_ann_vol_pct",
+        "vol_of_vol_log",
+        "max_month_vol_pct",
+        "min_month_vol_pct",
+        "rank_irregular"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "688c956c768adc422accc01ea21c3e2ea80c8d24f9d3b270d7363650fb9b472b"
+    },
+    {
+      "path": "outputs/reports/research_tables.csv",
+      "rows": 93,
+      "columns": [
+        "test",
+        "measure",
+        "sample",
+        "statistic",
+        "estimate",
+        "ci_low",
+        "ci_high",
+        "ci_method",
+        "null_value",
+        "test_name",
+        "p_value",
+        "n",
+        "note"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "dd28e9d282349ec45c2be02c19c6f9fe9854bc47257885a59a6e011e6db25a2b"
+    },
+    {
+      "path": "outputs/reports/research_rolling_premium.csv",
+      "rows": 373,
+      "columns": [
+        "mean",
+        "ci_low",
+        "ci_high",
+        "measure",
+        "window_months"
+      ],
+      "first_date": "1994-12-01",
+      "last_date": "2025-12-01",
+      "sha256": "66d2d7f5693c3197dc0f41ccc325b99b254129f2933ea0ed7c36071e38a0a3b4"
+    },
+    {
+      "path": "outputs/reports/research_breakeven.csv",
+      "rows": 11,
+      "columns": [
+        "measure",
+        "threshold",
+        "is_worst",
+        "n_crash",
+        "crash_mean",
+        "ordinary_mean",
+        "ordinary_mean_lo",
+        "ordinary_mean_hi",
+        "breakeven_rate",
+        "breakeven_rate_lo",
+        "breakeven_rate_hi",
+        "observed_rate",
+        "observed_rate_lo",
+        "observed_rate_hi",
+        "years",
+        "p_conservative",
+        "n",
+        "worst_month",
+        "ratio_breakeven_to_observed"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "6a2f0bc3c2ad3e245249bf6dac6a212be4c3d6ad4195da07e843bc7f2a301847"
+    },
+    {
+      "path": "outputs/reports/research_case_paths.csv",
+      "rows": 64,
+      "columns": [
+        "case",
+        "day",
+        "spx_close",
+        "spx_rel",
+        "vix_close",
+        "ret_log",
+        "accrued_rv_ann_var",
+        "accrued_over_implied"
+      ],
+      "first_date": "2020-02-14",
+      "last_date": "2025-05-01",
+      "sha256": "7563cb0c91c35e796246dcb44d9fde14813e681dafd4c92eda9fd252ffd33f61"
+    },
+    {
+      "path": "outputs/reports/research_claims.csv",
+      "rows": 11,
+      "columns": [
+        "id",
+        "test",
+        "claim",
+        "p_max",
+        "ci_ok",
+        "reasons",
+        "evidence",
+        "caveat",
+        "fallback",
+        "p_holm",
+        "supported"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "b7012130c2bf8064473edd19aaa5f7917fec7fe1d22e073349eae3c46e19b788"
     }
   ],
   "stats": {
-    "generated_utc": "2026-11-27T00:08:27+00:00",
+    "generated_utc": "2026-11-27T21:27:43+00:00",
     "git": {
-      "commit": "341386d8f21a063774d2a7d2b4a1b80b3d567c1f",
+      "commit": "04d5eb5b9372214dab9dc3e235f7404a318de4d9",
       "code_dirty": true
     },
     "settings": {
@@ -374,9 +419,9 @@
     "claims_total": 23
   },
   "research": {
-    "generated_utc": "2026-11-27T00:08:14+00:00",
+    "generated_utc": "2026-11-27T21:29:47+00:00",
     "git": {
-      "commit": "341386d8f21a063774d2a7d2b4a1b80b3d567c1f",
+      "commit": "04d5eb5b9372214dab9dc3e235f7404a318de4d9",
       "code_dirty": true
     },
     "settings": {
@@ -391,9 +436,30 @@
         0,
         5
       ],
-      "rolling_window_months": 60
+      "rolling_window_months": 60,
+      "breakeven_thresholds": {
+        "payoff_scaled": [
+          -1.0,
+          -2.0,
+          -3.0,
+          -4.0,
+          -5.0
+        ],
+        "payoff_var": [
+          -0.05,
+          -0.1,
+          -0.2,
+          -0.4
+        ]
+      },
+      "case_studies": [
+        "2020-03",
+        "2025-04"
+      ],
+      "case_pre_days": 10,
+      "case_big_move_sigma": 3.0
     },
-    "claims_supported": 2,
-    "claims_total": 9
+    "claims_supported": 3,
+    "claims_total": 11
   }
 }

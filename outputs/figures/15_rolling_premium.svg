@@ -1674,7 +1674,7 @@ L 271.580859 33.660312
 " style="fill: none; stroke-dasharray: 4.07,1.76; stroke-dashoffset: 0; stroke: #0b0b0b; stroke-width: 1.1"/>
     </g>
     <g id="text_26">
-     <text style="font-size: 8.5px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: start" x="278.380859" y="36.635312" transform="rotate(-0 278.380859 36.635312)">Linear trend, all months (-0.83%/yr; p = 0.013, Holm-adjusted p = 0.078)</text>
+     <text style="font-size: 8.5px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: start" x="278.380859" y="36.635312" transform="rotate(-0 278.380859 36.635312)">Linear trend, all months (-0.83%/yr; p = 0.013, Holm-adjusted p = 0.091)</text>
     </g>
    </g>
   </g>

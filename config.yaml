@@ -101,7 +101,6 @@ plots:
     dpi: 220
     figures:
       - "02_vix_vs_realised_vol_post2003"
-      - "06_data_coverage"
       - "07_test1_mean_ci_post2003"
       - "09_test3_selloff_post2003"
       - "10_test4_mincer_zarnowitz_post2003"
@@ -197,6 +196,11 @@ deck:
     - "Oxford Alpha Fund Quant Bootcamp | 2 December 2026"
   date_text: "Data: Oct 2003 – Dec 2025"
   footer_text: "S&P 500 Variance Risk Premium"
+  style:                         # titles: the template's display font is swapped on every layout
+    replace_font: "Ultra"
+    title_font: "Arial"
+    title_size: 28               # pt, content slides (template: 40)
+    cover_title_size: 30         # pt, title slide (template: 36)
   agenda:
     - "What the VIX measures"
     - "Is the VIX pessimistic? Evidence since 2003"

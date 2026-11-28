@@ -73,6 +73,21 @@ def test_build_deck(cfg, tmp_path) -> None:
     pics = [sh for sl in prs.slides for sh in sl.shapes if sh.shape_type == 13]
     deck_figs = set(cfg["plots"]["deck"]["figures"])
     assert pics and all(p.name in deck_figs for p in pics)
+    # Style: the contents title is a real (editable) title placeholder, not layout text, and no
+    # layout still uses the template's display font for titles.
+    toc = prs.slides[1]
+    assert toc.shapes.title is not None and toc.shapes.title.text_frame.text == "Table of Contents"
+    old = cfg["deck"]["style"]["replace_font"]
+    for part in [prs.slide_master, *prs.slide_layouts]:
+        assert f'typeface="{old}"' not in part.element.xml
+    # Every chart sits in a numbered exhibit.
+    labels = [
+        sh.text_frame.text
+        for sl in prs.slides
+        for sh in sl.shapes
+        if sh.name.startswith("exhibit ") and not sh.name.startswith("exhibit frame")
+    ]
+    assert len(labels) == len(pics) and labels[0].startswith("Exhibit 1:")
 
 
 def test_out_of_six() -> None:

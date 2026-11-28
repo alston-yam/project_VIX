@@ -11,6 +11,7 @@ Sign convention on every slide: **implied − realised** (positive = variance se
 from __future__ import annotations
 
 import copy
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -316,6 +317,24 @@ def _title(slide, text: str, bar: str | None = None, bar_idx: int = 3) -> None:
 
 SOURCE_NOTE = ""  # set by build_deck: the data source and sign convention under each chart
 CAPTION_H = 0.24  # inches reserved under a chart for that line
+LABEL_H = 0.3  # inches for the "Exhibit N: …" label above a chart
+FRAME = RGBColor(0xD0, 0xD0, 0xD0)
+# Exhibit labels (reference-deck style), keyed by the figure number at the start of its name.
+EXHIBITS = {
+    "02": "The VIX at the start of each month vs the volatility that followed",
+    "06": "Daily observations per year, by source",
+    "07": "Average seller payoff with 95% confidence intervals, three ways",
+    "09": "Seller payoff by S&P 500 decile, and against the S&P move",
+    "10": "Does the VIX forecast realised variance?",
+    "11": "Average payoff across robustness checks",
+    "12": "Monthly realised volatility and its autocorrelation",
+    "13": "Realised volatility and vol-of-vol by year",
+    "14": "Seller payoff by conditions known at the start of the month",
+    "15": "Five-year rolling premium with 95% band",
+    "16": "Years between crashes: needed to break even vs observed",
+    "17": "March 2020 and April 2025, day by day",
+}
+_EXHIBIT_N = [0]  # running exhibit number, reset by build_deck
 
 
 def _picture(slide, path: Path, x: float, y: float, w: float, h: float, alt: str) -> tuple:
@@ -324,19 +343,86 @@ def _picture(slide, path: Path, x: float, y: float, w: float, h: float, alt: str
     The slide versions of the charts carry no footnote, so the source line goes underneath.
     """
     iw, ih = Image.open(path).size
-    h_img = h - (CAPTION_H if SOURCE_NOTE else 0)
+    label = EXHIBITS.get(path.stem[:2])
+    top = LABEL_H if label else 0.0
+    h_img = h - top - 0.06 - (CAPTION_H if SOURCE_NOTE else 0)
     scale = min(w / iw, h_img / ih)
     pw, ph = iw * scale, ih * scale
     px = x + (w - pw) / 2
-    pic = slide.shapes.add_picture(str(path), Inches(px), Inches(y), Inches(pw), Inches(ph))
+    if label:  # thin frame around label + chart, then the label itself
+        _EXHIBIT_N[0] += 1
+        fr = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            Inches(px - 0.05),
+            Inches(y),
+            Inches(pw + 0.1),
+            Inches(top + ph + 0.06),
+        )
+        fr.name = f"exhibit frame {_EXHIBIT_N[0]}"
+        fr.fill.background()
+        fr.line.color.rgb = FRAME
+        fr.line.width = Pt(0.75)
+        _plain(fr)
+        lb = _textbox(slide, px, y + 0.02, pw, LABEL_H, f"exhibit {_EXHIBIT_N[0]}")
+        lb.text_frame.margin_top = lb.text_frame.margin_bottom = 0
+        r = lb.text_frame.paragraphs[0].add_run()
+        r.text = f"Exhibit {_EXHIBIT_N[0]}: {label}"
+        fits = pw * 72 / (0.56 * len(r.text))  # largest size that keeps the label on one line
+        _style_run(r, max(8.0, min(11.0, fits)), True, INK)
+    pic = slide.shapes.add_picture(str(path), Inches(px), Inches(y + top), Inches(pw), Inches(ph))
     pic.name = path.stem
     pic._element.nvPicPr.cNvPr.set("descr", alt)
     if SOURCE_NOTE:
-        tb = _textbox(slide, px, y + ph + 0.02, pw, CAPTION_H, "source")
+        tb = _textbox(slide, px - 0.05, y + top + ph + 0.08, pw + 0.1, CAPTION_H, "source")
         r = tb.text_frame.paragraphs[0].add_run()
         r.text = SOURCE_NOTE
         _style_run(r, 8.5, False, MUTED)
-    return px, y, pw, ph
+    return px, y + top, pw, ph
+
+
+def _est_height(items: list, w: float, size: float, space: float = 5) -> float:
+    """Rough height (inches) of bullet paragraphs in a box of width ``w`` (Arial)."""
+    cpl = max(10.0, (w - 0.45) * 72 / (0.5 * size))  # characters per line
+    h = 0.0
+    for it in items:
+        text = it if isinstance(it, str) else "".join(t for t, _, _ in it)
+        h += math.ceil(len(text) / cpl) * size * 1.22 / 72 + space / 72
+    return h
+
+
+def _block(slide, x: float, y: float, w: float, h: float, head: str, items: list, size: float):
+    """Reference-deck text block: short navy bar + header, bullets underneath."""
+    bar = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, Inches(x), Inches(y + 0.05), Inches(0.08), Inches(0.28)
+    )
+    bar.name = f"bar {head}"
+    bar.fill.solid()
+    bar.fill.fore_color.rgb = NAVY
+    bar.line.fill.background()
+    _plain(bar)
+    hb = _textbox(slide, x + 0.14, y, w - 0.14, 0.38, f"head {head}")
+    r = hb.text_frame.paragraphs[0].add_run()
+    r.text = head
+    _style_run(r, size + 1.5, True, INK)
+    tb = _textbox(slide, x + 0.1, y + 0.4, w - 0.1, max(h - 0.4, 0.3), f"text {head}")
+    _write(tb.text_frame, items, size=size, space_before=5)
+
+
+def _blocks(
+    slide,
+    x: float,
+    y: float,
+    w: float,
+    groups: list[tuple[str, list]],
+    size: float = 13,
+    gap: float = 0.2,
+) -> float:
+    """Stack text blocks top-down from ``y``; returns the y below the last one."""
+    for head, items in groups:
+        h = 0.42 + _est_height(items, w - 0.1, size)
+        _block(slide, x, y, w, h + 0.1, head, items, size)
+        y += h + gap
+    return y
 
 
 def _plain(shape) -> None:
@@ -415,6 +501,29 @@ def _caption(slide, x: float, y: float, w: float, text: str) -> None:
     _style_run(r, 10, False, MUTED)
 
 
+def _restyle_titles(prs, cfg: Config) -> None:
+    """Swap the template's display font for ``deck.style.title_font`` and shrink the titles.
+
+    Done on the master and layouts (not slide by slide), so slides added later in PowerPoint or
+    Google Slides match.
+    """
+    st = cfg["deck"]["style"]
+    old, new = st["replace_font"], st["title_font"]
+    for part in [prs.slide_master, *prs.slide_layouts]:
+        el = part.element
+        for tag in ("a:latin", "a:ea", "a:cs", "a:sym", "a:buFont"):
+            for e in el.iter(qn(tag)):
+                if e.get("typeface") == old:
+                    e.set("typeface", new)
+        size = st["cover_title_size"] if part is prs.slide_layouts[L_TITLE] else st["title_size"]
+        for sp in el.iter(qn("p:sp")):
+            ph = sp.find(".//" + qn("p:ph"))
+            if ph is not None and ph.get("type") in ("title", "ctrTitle"):
+                for r in sp.iter(qn("a:defRPr")):
+                    if r.get("sz"):
+                        r.set("sz", str(int(size * 100)))
+
+
 def _content_slide(prs, cfg: Config, keep: set[int] | None = None):
     s = prs.slides.add_slide(prs.slide_layouts[L_CONTENT])
     _prune(s, keep if keep is not None else {0, 3})
@@ -433,15 +542,15 @@ def slide_title(prs, cfg: Config) -> None:
 
 
 def slide_agenda(prs, cfg: Config) -> None:
-    """Table of contents."""
-    s = prs.slides.add_slide(prs.slide_layouts[L_TOC])
-    _prune(s, {1})
-    _add_footer(s, cfg["deck"]["date_text"], cfg["deck"]["footer_text"])
+    """Table of contents, on the content layout so the title is a real, editable placeholder."""
+    s = _content_slide(prs, cfg, keep={0})
+    s.shapes.title.text_frame.text = "Table of Contents"
     items = [
-        [(f"{i}   ", True, BLUE), (t, False, INK)]
+        [(f"{i}.   ", False, BLUE), (t, False, INK)]
         for i, t in enumerate(cfg["deck"]["agenda"], start=1)
     ]
-    _write(s.placeholders[1].text_frame, items, size=22, bullet=False, space_before=16)
+    tb = _textbox(s, X0 + 0.1, Y0 - 0.15, 9.0, 4.8, "agenda")
+    _write(tb.text_frame, items, size=22, bullet=False, space_before=14)
 
 
 def slide_i1(prs, cfg: Config, n: Numbers, fig: Path) -> None:
@@ -452,23 +561,36 @@ def slide_i1(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         "What Does the VIX Measure?",
         "The VIX prices next month's S&P 500 variance; selling it pays when markets stay calm",
     )
-    tb = _textbox(s, X0 + 0.1, Y0 + 0.1, 3.95, 4.9, "body")
-    _write(
-        tb.text_frame,
+    _blocks(
+        s,
+        X0,
+        Y0 + 0.1,
+        4.1,
         [
-            "The VIX is the market's 30-day forecast of S&P 500 volatility, read from "
-            "S&P options prices.",
-            "VIX² is the price of next month's variance. Selling it is a bet that the market "
-            "will be calmer than options imply.",
-            f"Each month since {n.monthly.index[0]:%b %Y} (the live VIX), we compare what the "
-            "VIX implied with the variance the "
-            "S&P actually delivered over the next 21 trading days.",
-            [
-                ("Sign: implied − realised. ", True, NAVY),
-                ("Positive means the VIX over-forecast and the seller won.", False, INK),
-            ],
+            (
+                "What the VIX is",
+                [
+                    "The market's 30-day forecast of S&P 500 volatility, read from S&P "
+                    "options prices.",
+                    "VIX² is the price of next month's variance. Selling it is a bet that the "
+                    "market will be calmer than options imply.",
+                ],
+            ),
+            (
+                "How we use it",
+                [
+                    f"Each month since {n.monthly.index[0]:%b %Y} (the live VIX), we compare "
+                    "what the "
+                    "VIX implied with the variance the "
+                    "S&P actually delivered over the next 21 trading days.",
+                    [
+                        ("Sign: implied − realised. ", True, NAVY),
+                        ("Positive means the VIX over-forecast and the seller won.", False, INK),
+                    ],
+                ],
+            ),
         ],
-        size=14,
+        size=13,
     )
     _picture(
         s,
@@ -539,38 +661,43 @@ def slide_i2(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         "Benchmarks: CFA Institute Enterprising Investor, 31 Jul 2024. Nothing adjusted to "
         "match. Checks use the full 1990–2025 dataset.",
     )
-    _picture(
+    _blocks(
         s,
-        fig / "06_data_coverage.png",
-        x,
-        y + rh * len(data) + 0.45,
-        w,
-        Y1 - (y + rh * len(data) + 0.45),
-        "Data coverage of each source, 1990–2026",
-    )
-    tb = _textbox(s, 7.75, Y0 + 0.1, 4.95, 4.9, "body")
-    _write(
-        tb.text_frame,
+        7.75,
+        Y0 + 0.1,
+        4.95,
         [
-            lab("Sources: ", "VIX from Cboe via FRED; S&P 500 from Yahoo Finance."),
-            lab(
-                "Sample: ",
-                f"{len(n.monthly)} months, {n.monthly.index[0]:%b %Y} to "
-                f"{n.monthly.index[-1]:%b %Y} (the live VIX), read on the first trading day "
-                "of each month.",
+            (
+                "Data",
+                [
+                    lab("Sources: ", "VIX from Cboe via FRED; S&P 500 from Yahoo Finance."),
+                    lab(
+                        "Sample: ",
+                        f"{len(n.monthly)} months, {n.monthly.index[0]:%b %Y} to "
+                        f"{n.monthly.index[-1]:%b %Y} (the live VIX), read on the first "
+                        "trading day "
+                        "of each month.",
+                    ),
+                ],
             ),
-            lab(
-                "No look-ahead: ",
-                "the VIX is read at the close of day t; realised variance uses only days "
-                "t+1 to t+21.",
-            ),
-            lab(
-                "Why 2003: ",
-                "the VIX before Sept 2003 was back-calculated by Cboe, not what traders saw, so "
-                "our evidence starts with the live VIX. The longer history is in the backup.",
+            (
+                "Rules",
+                [
+                    lab(
+                        "No look-ahead: ",
+                        "the VIX is read at the close of day t; realised variance uses only days "
+                        "t+1 to t+21.",
+                    ),
+                    lab(
+                        "Why 2003: ",
+                        "the VIX before Sept 2003 was back-calculated by Cboe, not what "
+                        "traders saw, so our evidence starts with the live VIX. The longer "
+                        "history is in the backup.",
+                    ),
+                ],
             ),
         ],
-        size=14,
+        size=13,
     )
 
 
@@ -630,29 +757,41 @@ def slide_r2(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         "How Bad Are the Losing Months?",
         "Losses are rare but violent, and they arrive in stock-market sell-offs",
     )
-    tb = _textbox(s, X0 + 0.1, Y0 + 0.1, 3.9, 5.0, "body")
-    _write(
-        tb.text_frame,
+    _blocks(
+        s,
+        X0,
+        Y0 + 0.1,
+        4.05,
         [
-            lab(
-                "Lopsided: ",
-                f"skewness {num(skew['estimate'])} [{num(skew['ci_low'])}, "
-                f"{num(skew['ci_high'])}]. Many small gains, a few huge losses.",
+            (
+                "Rare but violent",
+                [
+                    lab(
+                        "Lopsided: ",
+                        f"skewness {num(skew['estimate'])} [{num(skew['ci_low'])}, "
+                        f"{num(skew['ci_high'])}]. Many small gains, a few huge losses.",
+                    ),
+                    lab("Worst months ", f"(loss as a multiple of implied variance): {worst_txt}."),
+                ],
             ),
-            lab("Worst months ", f"(loss as a multiple of implied variance): {worst_txt}."),
-            lab(
-                "Clustered: ",
-                f"the worst 10% of S&P months carry {pct(share['estimate'])} of all seller "
-                f"losses {ci_pct(share['ci_low'], share['ci_high'])}; "
-                "with no clustering, about 10%.",
-            ),
-            lab(
-                "In sell-offs ",
-                f"(S&P down > 5%) the seller loses {pct(-sell['estimate'], 0)} of implied "
-                "variance on average.",
+            (
+                "Clustered in sell-offs",
+                [
+                    lab(
+                        "Clustered: ",
+                        f"the worst 10% of S&P months carry {pct(share['estimate'])} of all seller "
+                        f"losses {ci_pct(share['ci_low'], share['ci_high'])}; "
+                        "with no clustering, about 10%.",
+                    ),
+                    lab(
+                        "In sell-offs ",
+                        f"(S&P down > 5%) the seller loses {pct(-sell['estimate'], 0)} of implied "
+                        "variance on average.",
+                    ),
+                ],
             ),
         ],
-        size=14,
+        size=12.5,
     )
     _picture(
         s,
@@ -688,42 +827,37 @@ def slide_r3(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         "Daily S&P 500, VIX and realised variance accrued against the implied variance sold, "
         "for March 2020 and April 2025",
     )
-    paras: list = []
+    groups: list = []
     for m in cases:
         vix, rv = n.case(m, "vix_at_t"), n.case(m, "realised_vol_fwd")
         rec = n.case(m, "months_to_recover")
         rec_txt = f"won back in {rec:.0f} months" if np.isfinite(rec) else "not yet won back"
-        paras.append(
-            [
-                (f"{month_label(m)}: ", True, NAVY),
-                (
+        groups.append(
+            (
+                month_label(m).replace(NBSP, " "),
+                [
                     f"VIX {vix:.0f} at the start (higher than "
                     f"{pct(n.case(m, 'vix_at_t_percentile'), 0)} of months), realised vol "
-                    f"{rv:.0f}, {rv / vix:.1f}× the VIX. Premium gone by "
-                    f"day {n.case(m, 'premium_gone_by_day'):.0f}; the loss equalled "
-                    f"{n.case(m, 'months_of_premium_lost'):.0f} months of average premium, "
-                    f"{rec_txt}.",
-                    False,
-                    INK,
-                ),
-            ]
+                    f"{rv:.0f}, {rv / vix:.1f}× the VIX.",
+                    f"Premium gone by day {n.case(m, 'premium_gone_by_day'):.0f}; the loss "
+                    f"equalled {n.case(m, 'months_of_premium_lost'):.0f} months of average "
+                    f"premium, {rec_txt}.",
+                ],
+            )
         )
     last = cases[-1]
-    paras.append(
-        [
-            ("The path matters, not the end point. ", True, NAVY),
-            (
+    groups.append(
+        (
+            "The path matters, not the end point",
+            [
                 f"In {month_label(last)} the S&P fell "
                 f"{pct(-n.case(last, 'spx_max_drawdown_window'), 0)} inside the window yet "
-                f"ended {pct(n.case(last, 'spx_return_window'), 1)}; the "
-                "seller still lost, because variance accrues every day.",
-                False,
-                INK,
-            ),
-        ]
+                f"ended {pct(n.case(last, 'spx_return_window'), 1)}; the seller still lost, "
+                "because variance accrues every day."
+            ],
+        )
     )
-    tb = _textbox(s, 7.85, Y0 + 0.05, 4.9, 4.9, "body")
-    _write(tb.text_frame, paras, size=13)
+    _blocks(s, 7.85, Y0 + 0.05, 4.9, groups, size=12, gap=0.15)
     s.notes_slide.notes_text_frame.text = (
         "Descriptive: these are outcomes after t, not signals. A high VIX at the start was no "
         "protection in 2020. Numbers: research_summary.md, section D (case studies)."
@@ -774,10 +908,7 @@ def slide_r4(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         ),
     ]
     for i, (head, body) in enumerate(blocks):
-        x = X0 + i * (col + 0.2)
-        _card(s, x, Y0 + 3.6, col, 1.55, f"card {head}")
-        tb = _textbox(s, x + 0.12, Y0 + 3.66, col - 0.24, 1.45, f"text {head}")
-        _write(tb.text_frame, [[(head, True, NAVY)], body], size=12.5, bullet=False, space_before=3)
+        _block(s, X0 + i * (col + 0.2), Y0 + 3.65, col, 1.5, head, [body], size=12.5)
 
 
 def slide_r5(prs, cfg: Config, n: Numbers, fig: Path) -> None:
@@ -811,9 +942,13 @@ def slide_r5(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         3.6,
         "Mean seller payoff by VIX level and by VIX minus past realised vol, with 95% CIs",
     )
-    tb = _textbox(s, X0 + 0.1, Y0 + 3.85, X1 - X0 - 0.2, 1.4, "body")
-    _write(
-        tb.text_frame,
+    _block(
+        s,
+        X0,
+        Y0 + 3.75,
+        X1 - X0,
+        1.5,
+        "What we found",
         [
             lab(
                 "By VIX level: ",
@@ -833,8 +968,7 @@ def slide_r5(prs, cfg: Config, n: Numbers, fig: Path) -> None:
                 "is the size of the losses. Whether a model can do better is the next section.",
             ),
         ],
-        size=13,
-        space_before=4,
+        12.5,
     )
 
 
@@ -864,9 +998,13 @@ def slide_r6(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         f"Rolling {int(n.rolling['window_months'].iloc[0])}-month mean of the scaled seller "
         "payoff, with a 95% band and linear trend",
     )
-    tb = _textbox(s, 7.7, Y0 + 0.05, 5.0, 2.3, "body")
-    _write(
-        tb.text_frame,
+    _block(
+        s,
+        7.7,
+        Y0 + 0.05,
+        5.0,
+        2.2,
+        f"Since {n.since}",
         [
             lab(
                 "No trend: ",
@@ -880,7 +1018,7 @@ def slide_r6(prs, cfg: Config, n: Numbers, fig: Path) -> None:
                 f"{pct(roll.iloc[-1], 0)} now.",
             ),
         ],
-        size=13,
+        13,
     )
     be = n.row("R_breakeven", "payoff_scaled", "breakeven_years_between")
     be_v = n.row("R_breakeven", "payoff_var", "breakeven_years_between")
@@ -1081,23 +1219,23 @@ def slide_appendix(prs, cfg: Config, n: Numbers, fig: Path) -> None:
     """Appendix: Mincer–Zarnowitz (headline sample) and robustness (compares the eras)."""
     s = _content_slide(prs, cfg)
     _title(s, "Appendix: Forecast Bias and Robustness", "Supporting tests for Q&A")
-    h = (Y1 - Y0 - 0.25) / 2
+    w2 = (X1 - X0 - 0.3) / 2
     _picture(
         s,
         fig / n.png("10_test4_mincer_zarnowitz"),
         X0,
-        Y0,
-        X1 - X0,
-        h,
+        Y0 + 0.1,
+        w2,
+        Y1 - Y0 - 0.1,
         "Mincer–Zarnowitz regression of realised on implied variance",
     )
     _picture(
         s,
         fig / "11_test5_robustness.png",
-        X0,
-        Y0 + h + 0.2,
-        X1 - X0,
-        h,
+        X0 + w2 + 0.3,
+        Y0 + 0.1,
+        w2,
+        Y1 - Y0 - 0.1,
         "Mean payoff across robustness variants with 95% CIs",
     )
     c17, c17f = n.pclaim("C17"), n.full.pclaim("C17")
@@ -1406,8 +1544,10 @@ def build_deck(cfg: Config) -> Path:
         cfg["plots"]["source_note"] + ". Sign: implied − realised (positive = seller gains)."
     )
     n = load_numbers(cfg)
+    _EXHIBIT_N[0] = 0
     prs = Presentation(str(tpl))
     _clear_slides(prs)
+    _restyle_titles(prs, cfg)
 
     slide_title(prs, cfg)
     slide_agenda(prs, cfg)

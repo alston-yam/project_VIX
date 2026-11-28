@@ -399,5 +399,9 @@ numbers appear on one backup slide ("The Longer History") for Q&A, not in the st
     each chart. The analysis figures are unchanged.
 42. **Speaker notes (step 9)** are drafted by `deck.speaker_notes()` from the result tables,
     so they follow the data; each ends with a "Detail" line for Q&A.
+43. **Deck style** follows the earlier OAF team decks: titles in Arial (28 pt; the template's
+    display font is swapped on the master and every layout, `deck.style` in config), navy-bar
+    section headers with bullets, numbered "Exhibit N" frames around charts with the source
+    underneath, and the contents slide built on the normal layout so its title is editable.
 40. **Partial first year.** In the live-era year table, 2003's vol-of-vol uses Oct–Dec only;
     its annual vol uses the whole year. The slide says so.

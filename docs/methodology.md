@@ -367,3 +367,30 @@ section D the Jensen forecast uses only `iv_ann_var` and `rv_past21_ann_var` (gu
 35. **Case-study VIX percentile** ("higher than 95% of months") ranks the VIX at t against the
     whole 1990–2025 sample, so it is a description, not something known at t.
 
+
+## 11. Headline sample: the live-VIX era (27 Nov 2026)
+
+The pitch leads with **October 2003 – December 2025** (267 months, `post_2003`). `config.yaml`
+→ `headline:` names the flag and an output suffix (`_post2003`). `make stats` and
+`make research` then also run on those months (`pipeline.run_stats_headline`,
+`run_research(headline=True)`): stats tests 1–4 (test 5 already compares the eras) and the
+whole research section. Outputs carry the suffix (for example `stats_tables_post2003.csv`,
+`pitch_claims_post2003.md`, `research_claims_post2003.md`, figures `07…17_*_post2003`); the
+1990–2025 outputs are unchanged. The deck reads the live-VIX tables only; the full-sample
+numbers appear on one backup slide ("The Longer History") for Q&A, not in the story.
+
+36. **Why 2003.** Cboe launched today's VIX on 22 Sep 2003; earlier values were
+    back-calculated and could not have been traded. Our advisor recommended leading with the
+    live era. The decision was taken after the full-sample results were known, so both are
+    kept and the change is dated in `research_plan.md`.
+37. **Pre-registered verdicts stay on 1990–2025.** The live-VIX claims are their own Holm
+    families (18 v2 claims, 11 research claims). Where the eras disagree (the break-even test
+    R-10, the raw-variance mean C2, the forecast-bias test C17, the premium trend R-9) the
+    slides say so instead of picking the more favourable sample.
+38. **Fixed thresholds and deciles carry over.** VIX and gap buckets keep their thresholds;
+    `selloff_decile` keeps its full-sample cut points (26 of the 267 live months, 9.7%, are in
+    decile 1), so "the worst 10% of S&P months" is approximate in the live era.
+39. **Sample labels.** Result rows are matched to claims on their standard labels, then
+    relabelled (`1990–2025` → `2003–2025`, `since 1990` → `since 2003`) before writing.
+40. **Partial first year.** In the live-era year table, 2003's vol-of-vol uses Oct–Dec only;
+    its annual vol uses the whole year. The slide says so.

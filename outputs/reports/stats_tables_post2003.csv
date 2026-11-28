@@ -1,0 +1,75 @@
+test,measure,sample,statistic,estimate,ci_low,ci_high,ci_method,null_value,test_name,p_value,n,note
+1_mean,payoff_var,monthly 2003–2025,mean,0.007642364527260658,-0.0010059923691295445,0.016290721423650862,t (i.i.d.),0.0,"one-sample t, t = 1.74",0.08303428051350957,267,
+1_mean,payoff_var,monthly 2003–2025,mean,0.007642364527260661,-0.0008457722859028273,0.01613050134042415,Newey–West (6 lags),0.0,"HAC t, t = 1.76",0.07761926633118608,267,
+1_mean,payoff_var,monthly 2003–2025,mean,0.007642364527260658,-0.001820986944162798,0.015381064493957358,block bootstrap (6-month blocks),0.0,bootstrap,0.07879212078792121,267,
+1_mean,payoff_var,monthly 2003–2025,median,0.010890550505475386,0.009504503220497054,0.013612907458537972,block bootstrap (6-month blocks),0.0,sign test (218/267 positive),1.2870398803143528e-26,267,sign test assumes independent months
+1_mean,payoff_var,monthly 2003–2025,mean_excl_worst_5,0.0153975070550108,0.009050503297462247,0.020000796284720013,block bootstrap (6-month blocks),0.0,bootstrap,0.00029997000299970003,262,drops the 5 lowest months in each resample
+1_mean,payoff_var,monthly 2003–2025,mean_change_from_dropping_worst_5_pct,101.47569512141432,,,,,,,267,descriptive: % change in the mean when the worst months are removed
+1_mean,payoff_scaled,monthly 2003–2025,mean,0.24228927972561726,0.13430787492602325,0.35027068452521126,t (i.i.d.),0.0,"one-sample t, t = 4.42",1.4519392884755473e-05,267,
+1_mean,payoff_scaled,monthly 2003–2025,mean,0.2422892797256174,0.11979686501781363,0.3647816944334212,Newey–West (6 lags),0.0,"HAC t, t = 3.88",0.00010584046415541558,267,
+1_mean,payoff_scaled,monthly 2003–2025,mean,0.24228927972561726,0.11369523056495814,0.3563128978668706,block bootstrap (6-month blocks),0.0,bootstrap,0.0004999500049995,267,
+1_mean,payoff_scaled,monthly 2003–2025,median,0.48042304652726453,0.4114044872409978,0.5238982485897031,block bootstrap (6-month blocks),0.0,sign test (218/267 positive),1.2870398803143528e-26,267,sign test assumes independent months
+1_mean,payoff_scaled,monthly 2003–2025,mean_excl_worst_5,0.3354134798779485,0.2212955864720088,0.4258831489458123,block bootstrap (6-month blocks),0.0,bootstrap,9.999000099990002e-05,262,drops the 5 lowest months in each resample
+1_mean,payoff_scaled,monthly 2003–2025,mean_change_from_dropping_worst_5_pct,38.435130212030266,,,,,,,267,descriptive: % change in the mean when the worst months are removed
+1_mean,vol_spread_pts,monthly 2003–2025,mean,3.6759748023820147,2.6921534138502725,4.659796190913757,t (i.i.d.),0.0,"one-sample t, t = 7.36",2.343250497172787e-12,267,
+1_mean,vol_spread_pts,monthly 2003–2025,mean,3.675974802382017,2.5781455304729515,4.773804074291082,Newey–West (6 lags),0.0,"HAC t, t = 6.56",5.2824640436488115e-11,267,
+1_mean,vol_spread_pts,monthly 2003–2025,mean,3.6759748023820147,2.515470403333694,4.74173309018417,block bootstrap (6-month blocks),0.0,bootstrap,9.999000099990002e-05,267,
+1_mean,vol_spread_pts,monthly 2003–2025,median,4.444746579113633,3.9345262320340755,5.330890639856791,block bootstrap (6-month blocks),0.0,sign test (218/267 positive),1.2870398803143528e-26,267,sign test assumes independent months
+1_mean,vol_spread_pts,monthly 2003–2025,mean_excl_worst_5,4.455779550475192,3.4358496584274696,5.326449560472634,block bootstrap (6-month blocks),0.0,bootstrap,9.999000099990002e-05,262,drops the 5 lowest months in each resample
+1_mean,vol_spread_pts,monthly 2003–2025,mean_change_from_dropping_worst_5_pct,21.213549874930248,,,,,,,267,descriptive: % change in the mean when the worst months are removed
+2_shape,payoff_var,monthly 2003–2025,win_rate,0.8164794007490637,0.7656721317437671,0.8583091476950042,Wilson (i.i.d.),0.5,exact binomial (218/267),1.2870398803143528e-26,267,
+2_shape,payoff_var,monthly 2003–2025,win_rate,0.8164794007490637,0.7640449438202247,0.8651685393258427,block bootstrap (6-month blocks),0.5,bootstrap,9.999000099990002e-05,267,
+2_shape,payoff_var,monthly 2003–2025,skewness,-6.332847023121222,-10.702855305220355,0.23487639059531207,block bootstrap (6-month blocks),0.0,D'Agostino skewness test (i.i.d.),1.0649198841378856e-55,267,bootstrap p = 0.0297
+2_shape,payoff_var,monthly 2003–2025,excess_kurtosis,62.9326392227953,15.583817850310183,150.5454535850403,block bootstrap (6-month blocks),0.0,Anscombe–Glynn kurtosis test (i.i.d.),6.059155516275885e-28,267,bootstrap p = 0.07049
+2_shape,payoff_var,monthly 2003–2025,jarque_bera,44168.34076677389,,,,,Jarque–Bera normality (H0: normal),0.0,267,
+2_shape,payoff_var,monthly 2003–2025,avg_gain,0.022081667190491334,0.01708213965678264,0.02791894072298352,block bootstrap (6-month blocks),,,,218,
+2_shape,payoff_var,monthly 2003–2025,avg_loss,-0.05659779834180642,-0.10642787091506735,-0.016713291415872928,block bootstrap (6-month blocks),,,,49,
+2_shape,payoff_var,monthly 2003–2025,loss_to_gain_ratio,2.563112551853793,0.820826350422426,4.492355814700528,block bootstrap (6-month blocks),1.0,bootstrap (H0: |avg loss| = avg gain),0.10368963103689631,267,
+2_shape,payoff_var,monthly 2003–2025,mean_minus_median,-0.0032481859782147278,-0.012503991220597196,0.0033773139543534776,block bootstrap (6-month blocks),0.0,bootstrap (H0: mean = median),0.42555744425557446,267,robust lopsidedness check: < 0 means a left tail pulls the mean down
+2_shape,payoff_var,monthly 2003–2025,worst_month,-0.760863233470094,,,,,,,267,2020-03; descriptive (no CI: an extreme order statistic cannot be bootstrapped)
+2_shape,payoff_var,monthly 2003–2025,worst_over_avg_gain,-34.45678385179775,,,,,,,267,descriptive: worst month in units of the average winning month
+2_shape,payoff_var,monthly 2003–2025,share_of_losses_in_worst_5,0.71886964454862,,,,,,,49,descriptive: worst 5 of 49 losing months
+2_shape,payoff_var,monthly 2003–2025,worst_5_as_share_of_total_gains,0.4141497552540041,,,,,,,267,descriptive: the worst 5 months' losses ÷ the sum of all winning months
+2_shape,payoff_var,monthly 2003–2025,months_below_mean_minus_3sd,4.0,1.5595318251865806,10.113974582923785,"Wilson (i.i.d.), in months",0.36042277444523485,exact binomial vs normal tail probability,0.000518279987456442,267,normal expects 0.36 months
+2_shape,payoff_scaled,monthly 2003–2025,win_rate,0.8164794007490637,0.7656721317437671,0.8583091476950042,Wilson (i.i.d.),0.5,exact binomial (218/267),1.2870398803143528e-26,267,
+2_shape,payoff_scaled,monthly 2003–2025,win_rate,0.8164794007490637,0.7640449438202247,0.8651685393258427,block bootstrap (6-month blocks),0.5,bootstrap,9.999000099990002e-05,267,
+2_shape,payoff_scaled,monthly 2003–2025,skewness,-4.456688640501613,-5.751411782131117,-3.3717370254337755,block bootstrap (6-month blocks),0.0,D'Agostino skewness test (i.i.d.),9.801344566230426e-43,267,bootstrap p = 9.999e-05
+2_shape,payoff_scaled,monthly 2003–2025,excess_kurtosis,24.18052742802421,12.347841707681892,44.087733425747786,block bootstrap (6-month blocks),0.0,Anscombe–Glynn kurtosis test (i.i.d.),4.282472352957433e-21,267,bootstrap p = 0.0152
+2_shape,payoff_scaled,monthly 2003–2025,jarque_bera,7126.799938857945,,,,,Jarque–Bera normality (H0: normal),0.0,267,
+2_shape,payoff_scaled,monthly 2003–2025,avg_gain,0.5144409464610659,0.48326532045340437,0.5445598545365209,block bootstrap (6-month blocks),,,,218,
+2_shape,payoff_scaled,monthly 2003–2025,avg_loss,-0.9685079314647453,-1.490350266154419,-0.5050570830524335,block bootstrap (6-month blocks),,,,49,
+2_shape,payoff_scaled,monthly 2003–2025,loss_to_gain_ratio,1.8826416095516696,0.9759245769622638,2.9306248180871237,block bootstrap (6-month blocks),1.0,bootstrap (H0: |avg loss| = avg gain),0.072992700729927,267,
+2_shape,payoff_scaled,monthly 2003–2025,mean_minus_median,-0.23813376680164727,-0.3462162395224224,-0.13771246761287803,block bootstrap (6-month blocks),0.0,bootstrap (H0: mean = median),9.999000099990002e-05,267,robust lopsidedness check: < 0 means a left tail pulls the mean down
+2_shape,payoff_scaled,monthly 2003–2025,worst_month,-6.8122990947960265,,,,,,,267,2020-03; descriptive (no CI: an extreme order statistic cannot be bootstrapped)
+2_shape,payoff_scaled,monthly 2003–2025,worst_over_avg_gain,-13.242140116682174,,,,,,,267,descriptive: worst month in units of the average winning month
+2_shape,payoff_scaled,monthly 2003–2025,share_of_losses_in_worst_5,0.4885927987464589,,,,,,,49,descriptive: worst 5 of 49 losing months
+2_shape,payoff_scaled,monthly 2003–2025,worst_5_as_share_of_total_gains,0.20675418128129375,,,,,,,267,descriptive: the worst 5 months' losses ÷ the sum of all winning months
+2_shape,payoff_scaled,monthly 2003–2025,months_below_mean_minus_3sd,10.0,5.465184447427466,18.03812089158126,"Wilson (i.i.d.), in months",0.36042277444523485,exact binomial vs normal tail probability,6.2720259204539765e-12,267,normal expects 0.36 months
+2_shape,payoff_scaled,monthly 2003–2025,sharpe_annualised,0.93658845734627,0.34324572164951606,2.0511526131148705,block bootstrap (6-month blocks),0.0,bootstrap,0.045295470452954706,267,"ignores skew and crash risk (primer); idealised variance swap, no costs"
+3_crash,payoff_var,monthly 2003–2025,corr_with_spx_fwd21_ret,0.5947208738729544,0.511169407778648,0.6671372189937451,Fisher z (i.i.d.),0.0,Pearson,6.249237178478496e-27,267,
+3_crash,payoff_var,monthly 2003–2025,corr_with_spx_fwd21_ret,0.5947208738729542,0.46250644302324245,0.7095940834006733,block bootstrap (6-month blocks),0.0,bootstrap,9.999000099990002e-05,267,
+3_crash,payoff_var,monthly 2003–2025,spearman_with_spx_fwd21_ret,0.5933708999986129,0.5010073115785847,0.6798955910584037,block bootstrap (6-month blocks),0.0,Spearman rank,8.698002849282178e-27,267,bootstrap p = 9.999e-05
+3_crash,payoff_var,monthly 2003–2025,mean_in_selloff,-0.08357543038924946,-0.15875399943185425,-0.008396861346644649,t (i.i.d.),0.0,"one-sample t, t = -2.29",0.03075988430837971,26,is_selloff months are identical to decile 1 in this sample
+3_crash,payoff_var,monthly 2003–2025,mean_outside_selloff,0.01748328846016217,0.013270800700801902,0.021695776219522435,t (i.i.d.),0.0,"one-sample t, t = 8.18",1.7040556662236604e-14,241,
+3_crash,payoff_var,monthly 2003–2025,diff_mean_selloff_minus_other,-0.10105871884941163,-0.1840614455422275,-0.029287817955751482,block bootstrap (6-month blocks),0.0,"Welch t, t = -2.76",0.010531044126021141,267,bootstrap p = 0.009699; Mann–Whitney p = 1.6e-07
+3_crash,payoff_var,monthly 2003–2025,loss_rate_in_selloff,0.6538461538461539,0.4622057118881081,0.8058776967705948,Wilson (i.i.d.),0.13278008298755187,Fisher exact vs other months (32/241 lose outside),2.104113110095364e-08,26,17/26 months lose
+3_crash,payoff_var,monthly 2003–2025,diff_mean_decile_1_minus_decile_10,-0.14456096430540466,-0.2407218509750872,-0.062325480073979735,bootstrap over the 2 deciles' months,0.0,"Welch t, t = -3.76",0.000728906997171846,54,bootstrap p = 0.0022; mean decile 10 = 0.06099
+3_crash,payoff_var,monthly 2003–2025,loss_share_in_decile_1,0.8330643611603593,0.4517553426713742,0.944955520950788,block bootstrap (6-month blocks),0.1,"permutation (10,000 shuffles; null mean 0.096)",9.999000099990002e-05,267,share of the total of all negative payoffs; bootstrap p = 0.0004
+3_crash,payoff_scaled,monthly 2003–2025,corr_with_spx_fwd21_ret,0.5861501932020897,0.5013842685776349,0.6597712439484645,Fisher z (i.i.d.),0.0,Pearson,4.9674121852638276e-26,267,
+3_crash,payoff_scaled,monthly 2003–2025,corr_with_spx_fwd21_ret,0.5861501932020898,0.4496920425876733,0.6837191260415582,block bootstrap (6-month blocks),0.0,bootstrap,9.999000099990002e-05,267,
+3_crash,payoff_scaled,monthly 2003–2025,spearman_with_spx_fwd21_ret,0.5914492755450592,0.49215696795655606,0.6776374816954817,block bootstrap (6-month blocks),0.0,Spearman rank,1.3888528138416922e-26,267,bootstrap p = 9.999e-05
+3_crash,payoff_scaled,monthly 2003–2025,mean_in_selloff,-1.1954000299166727,-1.9802660865044508,-0.41053397332889463,t (i.i.d.),0.0,"one-sample t, t = -3.14",0.004336459304350832,26,is_selloff months are identical to decile 1 in this sample
+3_crash,payoff_scaled,monthly 2003–2025,mean_outside_selloff,0.39739269072437056,0.33411645816665947,0.46066892328208164,t (i.i.d.),0.0,"one-sample t, t = 12.37",1.6011931660792761e-27,241,
+3_crash,payoff_scaled,monthly 2003–2025,diff_mean_selloff_minus_other,-1.5927927206410433,-2.364574501093905,-0.856197457517179,block bootstrap (6-month blocks),0.0,"Welch t, t = -4.16",0.00031660947112978913,267,bootstrap p = 0.0007999; Mann–Whitney p = 3.46e-11
+3_crash,payoff_scaled,monthly 2003–2025,loss_rate_in_selloff,0.6538461538461539,0.4622057118881081,0.8058776967705948,Wilson (i.i.d.),0.13278008298755187,Fisher exact vs other months (32/241 lose outside),2.104113110095364e-08,26,17/26 months lose
+3_crash,payoff_scaled,monthly 2003–2025,diff_mean_decile_1_minus_decile_10,-1.74470048695219,-2.4991951891014903,-1.031508026845061,bootstrap over the 2 deciles' months,0.0,"Welch t, t = -4.56",0.00011308729556040205,54,bootstrap p = 9.999e-05; mean decile 10 = 0.5493
+3_crash,payoff_scaled,monthly 2003–2025,loss_share_in_decile_1,0.6953452025444447,0.4148998389443542,0.8668555689431421,block bootstrap (6-month blocks),0.1,"permutation (10,000 shuffles; null mean 0.097)",9.999000099990002e-05,267,share of the total of all negative payoffs; bootstrap p = 0.0002
+4_forecast,variance,monthly 2003–2025,intercept_a,-0.00016065357338400062,-0.008330249019815375,0.008008941873047374,Newey–West (6 lags),0.0,HAC z (H0: a = 0),0.9692552846032042,267,
+4_forecast,variance,monthly 2003–2025,slope_b,0.8263728455803355,0.5473707391663365,1.1053749519943346,Newey–West (6 lags),1.0,HAC z (H0: b = 1),0.22257304857156268,267,
+4_forecast,variance,monthly 2003–2025,joint_a0_b1,2.71722957918587,,,,,"HAC Wald χ²(2) (H0: unbiased forecast, a = 0 and b = 1)",0.257016552487975,267,R² = 0.247
+4_forecast,vol_pct,monthly 2003–2025,intercept_a,-1.3875053719913741,-4.111082818771822,1.3360720747890733,Newey–West (6 lags),0.0,HAC z (H0: a = 0),0.318042574125764,267,
+4_forecast,vol_pct,monthly 2003–2025,slope_b,0.8799730218016576,0.6954201147582383,1.0645259288450768,Newey–West (6 lags),1.0,HAC z (H0: b = 1),0.2024174348500768,267,
+4_forecast,vol_pct,monthly 2003–2025,joint_a0_b1,75.05895247490056,,,,,"HAC Wald χ²(2) (H0: unbiased forecast, a = 0 and b = 1)",5.025225574817285e-17,267,R² = 0.444
+4_forecast,log_variance,monthly 2003–2025,intercept_a,-0.49186193612502027,-1.0398270703135297,0.05610319806348918,Newey–West (6 lags),0.0,HAC z (H0: a = 0),0.07852761388088583,267,
+4_forecast,log_variance,monthly 2003–2025,slope_b,1.028325456702359,0.884772881880658,1.17187803152406,Newey–West (6 lags),1.0,HAC z (H0: b = 1),0.6989520413808321,267,
+4_forecast,log_variance,monthly 2003–2025,joint_a0_b1,174.86184760708215,,,,,"HAC Wald χ²(2) (H0: unbiased forecast, a = 0 and b = 1)",1.069626722607396e-38,267,R² = 0.508

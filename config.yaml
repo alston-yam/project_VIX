@@ -155,6 +155,17 @@ research:
     claims: "research_claims.md"
 
 # ---------------------------------------------------------------------------
+# Headline sample (advisor, 27 Nov 2026): the pitch leads with the live-VIX era. The stats
+# (tests 1–4) and research stages also run on the months flagged below and write the same
+# outputs with `suffix` added; the full 1990–2025 outputs are unchanged and stay the
+# pre-registered results. 1990–2003 VIX values are back-calculated (dates.vix_new_methodology_date).
+# ---------------------------------------------------------------------------
+headline:
+  flag: "post_2003"              # boolean column of monthly_sample.csv selecting the months
+  suffix: "_post2003"            # added to output file and figure names
+  stats_tests: ["1", "2", "3", "4"]   # v2 tests rerun (5 = robustness compares eras itself)
+
+# ---------------------------------------------------------------------------
 # Pitch deck (src/vrp/deck.py, `make deck`). Numbers are read from the generated tables.
 # ---------------------------------------------------------------------------
 deck:
@@ -162,13 +173,13 @@ deck:
   output: "deck/VIX_pitch.pptx"
   title: "Is the VIX Too Pessimistic?"
   subtitle_lines:
-    - "The S&P 500 variance risk premium, 1990–2025"
+    - "The S&P 500 variance risk premium in the live-VIX era, 2003–2025"
     - "Oxford Alpha Fund Quant Bootcamp | 2 December 2026"
-  date_text: "Data: Jan 1990 – Dec 2025"
+  date_text: "Data: Oct 2003 – Dec 2025"
   footer_text: "S&P 500 Variance Risk Premium"
   agenda:
     - "What the VIX measures"
-    - "Is the VIX pessimistic? Evidence from 1990–2025"
+    - "Is the VIX pessimistic? Evidence since 2003"
     - "A fair price for the VIX"
     - "Trading the premium: strategy and backtest"
     - "Verdict"

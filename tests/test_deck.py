@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 
+import pandas as pd
 import pytest
 from pptx import Presentation
 
@@ -32,7 +33,7 @@ def test_build_deck(cfg, tmp_path) -> None:
     text = "\n".join(
         sh.text_frame.text for sl in prs.slides for sh in sl.shapes if sh.has_text_frame
     )
-    assert len(prs.slides) == 17
+    assert len(prs.slides) == 18
     assert "Is the VIX Too Pessimistic?" in text
     for leftover in ("Insert Stock Name", "GARCH", "5/5/2025", "N. Surname"):
         assert leftover not in text
@@ -47,3 +48,26 @@ def test_build_deck(cfg, tmp_path) -> None:
     assert deck.num(be) in text
     assert deck.month_label("2020-03") == "Mar\u00a02020"
     assert deck.p_short(0.0004) == "p\u00a0<\u00a00.001"
+    # Verdict: provisional subtitle on the slide; the spoken line lives in the speaker notes.
+    assert "Provisional:" in text and "Yes, on average." in text
+    notes = prs.slides[12].notes_slide.notes_text_frame.text
+    assert "is the VIX too pessimistic?" in notes
+    assert "So, is the VIX" not in text
+    # The pitch leads with the live-VIX era; the full sample is attached for comparison.
+    assert n.sfx == cfg["headline"]["suffix"] and n.full is not None and n.full.sfx == ""
+    assert len(n.monthly) < len(n.full.monthly)
+    assert n.monthly.index[0] >= pd.Timestamp(cfg["dates"]["vix_new_methodology_date"])
+    assert f"since {n.since}" in text.lower()
+    assert "1990–2025, we compare" not in text
+    # The 1990s stay out of the story slides (3–13); they live on the backup slide.
+    story = "\n".join(
+        sh.text_frame.text for sl in list(prs.slides)[2:13] for sh in sl.shapes if sh.has_text_frame
+    )
+    assert "1990s" not in story and "back-history" not in story
+    assert "Backup: The Longer History" in text
+
+
+def test_out_of_six() -> None:
+    """Fractions are only spoken when they are close to the measured share."""
+    assert deck.out_of_six(0.838) == "five months out of six"
+    assert deck.out_of_six(0.75) is None

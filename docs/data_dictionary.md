@@ -171,6 +171,13 @@ by date. `day` = trading days from t (0 = t, the month's first trading day); `sp
 `rv_fwd21_ann_var` on day 21); `accrued_over_implied` = that ÷ `iv_ann_var` at t (above 1 = the
 seller's premium is gone). Rows after t are **outcomes**: a description, never a predictor.
 
+**Headline (live-VIX) outputs.** Every file above from `make stats` (tests 1–4 only) and
+`make research` also exists with the suffix `_post2003` (e.g. `stats_tables_post2003.csv`,
+`pitch_claims_post2003.csv`, `research_tables_post2003.csv`, `research_breakeven_post2003.csv`,
+`data/processed/rv_calendar_month_post2003.csv`). Same columns and the same "known at t?" flags;
+computed on the 267 months with `post_2003` true, and `sample` labels read `2003–2025`.
+`stats_deciles` and `monthly_variants` have no headline version. See methodology §11.
+
 `research_claims.csv`: as `pitch_claims.csv`, for the eleven pre-registered research claims
 R-1 … R-11 (own Holm family). Rendered as `research_claims.md`; full tables in
 `research_summary.md`.

@@ -141,3 +141,18 @@ and past RV at t, the daily path through the window, payoff).
   realised variance accrued in the window exceeded the implied variance sold, the window's
   S&P drawdown, months of average premium lost, and months until the cumulative scaled
   payoff from the crash month was back above zero.
+- 27 Nov 2026 (advisor's advice, after the step 5 results were read): **the pitch leads with
+  the live-VIX era**, 2003-10 to 2025-12 (267 months, `post_2003`), because VIX values before
+  22 Sep 2003 were back-calculated by Cboe and are not what traders saw. The pre-registered
+  tests above are unchanged and still run on 1990–2025 (those files keep their names). The
+  stats tests 1–4 and the whole research section are rerun on the live-VIX months and written
+  with the suffix `_post2003`; those claims are their own Holm families. Slides quote the
+  live-VIX numbers and bring in the 1990s back-history only where it changes the answer: the
+  apparent decline of the premium (the 1990s ran higher; no trend since 2003) and the
+  break-even test (R-10 passes only with the 1990s; on its own the live era has one crash in
+  22 years). This switch was made after seeing results, so both sets of numbers are kept and
+  reported.
+- 27 Nov 2026 (same evening, after review): the 1990s numbers are taken off the story slides
+  entirely (mixing samples there read as reaching for significance). The deck is live-VIX
+  only; a backup slide compares both samples for Q&A. The break-even result is stated as
+  "suggestive, not proven" for the live era.

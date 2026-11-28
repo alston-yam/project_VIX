@@ -38,7 +38,7 @@ make all        # download (cached) → clean → features → sample → events
 | `make data` | data stage: `python -m vrp.pipeline --stage data` |
 | `make refresh` | data stage with fresh downloads (`--refresh`) |
 | `make figures` | figures from processed data |
-| `make stats` / `make research` | v2 tests / research section (figures 12–17) |
+| `make stats` / `make research` | v2 tests / research section (figures 12–17); each also on the live-VIX era (`*_post2003`) |
 | `make deck` | pitch deck → `deck/VIX_pitch.pptx` (needs python-pptx) |
 | `make test` | `pytest` (must pass before any commit) |
 | `make lint` / `make format` | black + ruff check / fix (line length 100) |
@@ -209,4 +209,9 @@ helpers), a `--stage deck` stage, and write to `outputs/figures/deck/`.
   `outputs/reports/research_claims.md` before quoting any research number. Teammates' brief
   and the model → strategy handoff file (`rv_forecast.csv`, `rv_hat_ann_var`) are in
   `docs/team_brief.md`.
+- **Headline sample (27 Nov 2026, advisor):** the pitch leads with the live-VIX era,
+  Oct 2003 – Dec 2025 (`headline:` in config; methodology §11). Stats tests 1–4 and research
+  rerun on it into `*_post2003` files; the deck uses those only, with the 1990–2025 numbers
+  on a single backup slide for Q&A. Live era: 13 of 18 v2 claims and 2 of 11 research claims pass; the
+  break-even test R-10 passes only with the 1990s back-history.
 

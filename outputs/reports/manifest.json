@@ -1,7 +1,7 @@
 {
-  "generated_utc": "2026-11-27T21:27:13+00:00",
+  "generated_utc": "2026-11-27T23:39:57+00:00",
   "git": {
-    "commit": "04d5eb5b9372214dab9dc3e235f7404a318de4d9",
+    "commit": "a014da939478661a2fa30504ce74c136a339cd13",
     "code_dirty": true
   },
   "config": {
@@ -250,6 +250,48 @@
       "sha256": "3f23082079c1ece93a5af57622b3584a7d55868b09289cb552ec16bc287dcbbd"
     },
     {
+      "path": "outputs/reports/stats_tables_post2003.csv",
+      "rows": 74,
+      "columns": [
+        "test",
+        "measure",
+        "sample",
+        "statistic",
+        "estimate",
+        "ci_low",
+        "ci_high",
+        "ci_method",
+        "null_value",
+        "test_name",
+        "p_value",
+        "n",
+        "note"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "2ea6ce1e653bd7c87237a8b134bcc9411aa823cf3b18e93b4d063bfca5bf5c46"
+    },
+    {
+      "path": "outputs/reports/pitch_claims_post2003.csv",
+      "rows": 18,
+      "columns": [
+        "id",
+        "test",
+        "claim",
+        "p_max",
+        "ci_ok",
+        "reasons",
+        "evidence",
+        "caveat",
+        "fallback",
+        "p_holm",
+        "supported"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "8fafcea87c58f36d1733c319959e59874664fb14ccebf6e8a3fc3530d2af9cc8"
+    },
+    {
       "path": "data/processed/rv_calendar_month.csv",
       "rows": 432,
       "columns": [
@@ -376,12 +418,140 @@
       "first_date": null,
       "last_date": null,
       "sha256": "b7012130c2bf8064473edd19aaa5f7917fec7fe1d22e073349eae3c46e19b788"
+    },
+    {
+      "path": "data/processed/rv_calendar_month_post2003.csv",
+      "rows": 267,
+      "columns": [
+        "n_days",
+        "rv_cal_ann_var",
+        "rv_cal_ann_vol_pct"
+      ],
+      "first_date": "2003-10-01",
+      "last_date": "2025-12-01",
+      "sha256": "369475322b361295e001d12cd5d4fef87db13d69c403574f3b13083c97d6ed66"
+    },
+    {
+      "path": "outputs/reports/research_rv_by_year_post2003.csv",
+      "rows": 23,
+      "columns": [
+        "n_days",
+        "rv_ann_vol_pct",
+        "vol_of_vol_log",
+        "max_month_vol_pct",
+        "min_month_vol_pct",
+        "rank_irregular"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "26a0e3b64b3a582088576b5aec6d7a59983c2d7c7adc7d35462662a3bfe5f7b7"
+    },
+    {
+      "path": "outputs/reports/research_tables_post2003.csv",
+      "rows": 93,
+      "columns": [
+        "test",
+        "measure",
+        "sample",
+        "statistic",
+        "estimate",
+        "ci_low",
+        "ci_high",
+        "ci_method",
+        "null_value",
+        "test_name",
+        "p_value",
+        "n",
+        "note"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "a820f64a5c1088346b431e296dbed077de84e7c1cde5b445c33b69619da15704"
+    },
+    {
+      "path": "outputs/reports/research_rolling_premium_post2003.csv",
+      "rows": 208,
+      "columns": [
+        "mean",
+        "ci_low",
+        "ci_high",
+        "measure",
+        "window_months"
+      ],
+      "first_date": "2008-09-02",
+      "last_date": "2025-12-01",
+      "sha256": "bd49a10840deb51ed7e8b260629094dd4557bba35d5b452170d4c7d3fa2aaf47"
+    },
+    {
+      "path": "outputs/reports/research_breakeven_post2003.csv",
+      "rows": 11,
+      "columns": [
+        "measure",
+        "threshold",
+        "is_worst",
+        "n_crash",
+        "crash_mean",
+        "ordinary_mean",
+        "ordinary_mean_lo",
+        "ordinary_mean_hi",
+        "breakeven_rate",
+        "breakeven_rate_lo",
+        "breakeven_rate_hi",
+        "observed_rate",
+        "observed_rate_lo",
+        "observed_rate_hi",
+        "years",
+        "p_conservative",
+        "n",
+        "worst_month",
+        "ratio_breakeven_to_observed"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "49da84d0102df613d3c907a53f4ed474a561e102f5676b84999ac6dd00e2c7b3"
+    },
+    {
+      "path": "outputs/reports/research_case_paths_post2003.csv",
+      "rows": 64,
+      "columns": [
+        "case",
+        "day",
+        "spx_close",
+        "spx_rel",
+        "vix_close",
+        "ret_log",
+        "accrued_rv_ann_var",
+        "accrued_over_implied"
+      ],
+      "first_date": "2020-02-14",
+      "last_date": "2025-05-01",
+      "sha256": "7563cb0c91c35e796246dcb44d9fde14813e681dafd4c92eda9fd252ffd33f61"
+    },
+    {
+      "path": "outputs/reports/research_claims_post2003.csv",
+      "rows": 11,
+      "columns": [
+        "id",
+        "test",
+        "claim",
+        "p_max",
+        "ci_ok",
+        "reasons",
+        "evidence",
+        "caveat",
+        "fallback",
+        "p_holm",
+        "supported"
+      ],
+      "first_date": null,
+      "last_date": null,
+      "sha256": "fc3afa1608d2c133736d8396ae8def56460fb951add4fd4f4577ec0e0f95d1ab"
     }
   ],
   "stats": {
-    "generated_utc": "2026-11-27T21:27:43+00:00",
+    "generated_utc": "2026-11-27T23:40:17+00:00",
     "git": {
-      "commit": "04d5eb5b9372214dab9dc3e235f7404a318de4d9",
+      "commit": "a014da939478661a2fa30504ce74c136a339cd13",
       "code_dirty": true
     },
     "settings": {
@@ -418,12 +588,29 @@
     "claims_supported": 17,
     "claims_total": 23
   },
-  "research": {
-    "generated_utc": "2026-11-27T21:29:47+00:00",
+  "stats_post2003": {
+    "generated_utc": "2026-11-27T23:40:22+00:00",
     "git": {
-      "commit": "04d5eb5b9372214dab9dc3e235f7404a318de4d9",
+      "commit": "a014da939478661a2fa30504ce74c136a339cd13",
       "code_dirty": true
     },
+    "months": 267,
+    "tests": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "claims_supported": 13,
+    "claims_total": 18
+  },
+  "research": {
+    "generated_utc": "2026-11-27T23:40:33+00:00",
+    "git": {
+      "commit": "a014da939478661a2fa30504ce74c136a339cd13",
+      "code_dirty": true
+    },
+    "months": 432,
     "settings": {
       "ar_nw_lags": 6,
       "trend_nw_lags": 12,
@@ -460,6 +647,51 @@
       "case_big_move_sigma": 3.0
     },
     "claims_supported": 3,
+    "claims_total": 11
+  },
+  "research_post2003": {
+    "generated_utc": "2026-11-27T23:40:38+00:00",
+    "git": {
+      "commit": "a014da939478661a2fa30504ce74c136a339cd13",
+      "code_dirty": true
+    },
+    "months": 267,
+    "settings": {
+      "ar_nw_lags": 6,
+      "trend_nw_lags": 12,
+      "adf_autolag": "AIC",
+      "vix_thresholds": [
+        15,
+        25
+      ],
+      "gap_thresholds": [
+        0,
+        5
+      ],
+      "rolling_window_months": 60,
+      "breakeven_thresholds": {
+        "payoff_scaled": [
+          -1.0,
+          -2.0,
+          -3.0,
+          -4.0,
+          -5.0
+        ],
+        "payoff_var": [
+          -0.05,
+          -0.1,
+          -0.2,
+          -0.4
+        ]
+      },
+      "case_studies": [
+        "2020-03",
+        "2025-04"
+      ],
+      "case_pre_days": 10,
+      "case_big_move_sigma": 3.0
+    },
+    "claims_supported": 2,
     "claims_total": 11
   }
 }

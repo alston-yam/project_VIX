@@ -1,0 +1,94 @@
+test,measure,sample,statistic,estimate,ci_low,ci_high,ci_method,null_value,test_name,p_value,n,note
+R_dynamics,log_rv_cal,calendar months 2003–2025,ar1_rho,0.6443744231191217,0.506964185816515,0.7817846604217285,Newey–West (6 lags),0.0,"HAC z, z = 9.19",3.8885939984183195e-20,266,half-life 1.58 months
+R_dynamics,log_rv_cal,calendar months 2003–2025,half_life_months,1.577215260687196,,,,,,,266,
+R_dynamics,log_rv_cal,calendar months 2003–2025,autocorr_lag_1,0.6434928640652041,,,,,,,266,
+R_dynamics,log_rv_cal,calendar months 2003–2025,autocorr_lag_3,0.39569057386305273,,,,,,,264,
+R_dynamics,log_rv_cal,calendar months 2003–2025,autocorr_lag_6,0.2801218200216276,,,,,,,261,
+R_dynamics,log_rv_cal,calendar months 2003–2025,autocorr_lag_12,0.08169787565068132,,,,,,,255,
+R_dynamics,log_rv_cal,calendar months 2003–2025,adf_stat,-5.933145776849093,,,,,"ADF (constant, 1 lags by AIC), H0: unit root",2.3546150076364447e-07,265,"critical values 1%: -3.46, 5%: -2.87, 10%: -2.57"
+R_dynamics,log_rv_cal,calendar months 2003–2025,trend_slope_per_year,0.0014663408142034998,-0.03896937982492352,0.041902061453330516,Newey–West (12 lags),0.0,"HAC z, z = 0.07",0.9433379401536485,267,≈ +0.7% realised vol per decade (half the log-variance slope)
+R_dynamics,dlog_rv_cal,calendar months 2003–2025,skewness,0.33205210740652624,0.03248675816998151,0.6522645030797242,block bootstrap (6-month blocks),0.0,bootstrap,0.0377962203779622,266,D'Agostino (i.i.d.) p = 0.0276
+R_dynamics,dlog_rv_cal,calendar months 2003–2025,sd,0.8507656016865511,,,,,,,266,std of month-to-month change in log realised variance
+R_dynamics,dlog_rv_cal,calendar months 2003–2025,largest_rise,2.81507306699584,,,,,,,266,into 2018-10
+R_dynamics,dlog_rv_cal,calendar months 2003–2025,largest_fall,-2.7875933645853745,,,,,,,266,into 2014-11
+R_conditional,payoff_var,VIX ≤ 15,mean,0.00413339647664351,0.0018092496838107387,0.006457543269476282,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 3.49",0.0004908276571605232,96,median 0.006688; win rate 0.781
+R_conditional,payoff_var,VIX ≤ 15,win_rate,0.78125,,,,,,,96,
+R_conditional,payoff_var,15 < VIX ≤ 25,mean,0.009127949370037348,0.003899846435566333,0.014356052304508362,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 3.42",0.0006216739631181335,130,median 0.01529; win rate 0.846
+R_conditional,payoff_var,15 < VIX ≤ 25,win_rate,0.8461538461538461,,,,,,,130,
+R_conditional,payoff_var,VIX > 25,mean,0.011148093875999103,-0.03262053974858854,0.05491672750058675,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 0.50",0.6176294725220748,41,median 0.04098; win rate 0.805
+R_conditional,payoff_var,VIX > 25,win_rate,0.8048780487804879,,,,,,,41,
+R_conditional,payoff_var,VIX > 25 minus VIX ≤ 15,diff_mean_high_minus_low,0.007014697399355597,-0.04862970466306898,0.04585760461563256,block bootstrap (6-month blocks),0.0,bootstrap,0.773022697730227,137,"Welch t = 0.26, p = 0.794"
+R_conditional,payoff_scaled,VIX ≤ 15,mean,0.24848581028679834,0.10241884653863637,0.3945527740349603,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 3.33",0.0008553087350927426,96,median 0.4486; win rate 0.781
+R_conditional,payoff_scaled,VIX ≤ 15,win_rate,0.78125,,,,,,,96,
+R_conditional,payoff_scaled,15 < VIX ≤ 25,mean,0.2832466739467815,0.15425263911401443,0.41224070877954855,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 4.30",1.6795936205472034e-05,130,median 0.4837; win rate 0.846
+R_conditional,payoff_scaled,15 < VIX ≤ 25,win_rate,0.8461538461538461,,,,,,,130,
+R_conditional,payoff_scaled,VIX > 25,mean,0.09791542161281912,-0.28548021964833076,0.481311062873969,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 0.50",0.6166841653378736,41,median 0.4939; win rate 0.805
+R_conditional,payoff_scaled,VIX > 25,win_rate,0.8048780487804879,,,,,,,41,
+R_conditional,payoff_scaled,VIX > 25 minus VIX ≤ 15,diff_mean_high_minus_low,-0.1505703886739792,-0.6591112921014045,0.2311056191009891,block bootstrap (6-month blocks),0.0,bootstrap,0.5029497050294971,137,"Welch t = -0.70, p = 0.489"
+R_conditional,payoff_var,gap ≤ 0 pts,mean,0.00684284184387599,-0.027711473784323242,0.04139715747207522,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 0.39",0.6979164689228035,33,median 0.01868; win rate 0.788
+R_conditional,payoff_var,gap ≤ 0 pts,win_rate,0.7878787878787878,,,,,,,33,
+R_conditional,payoff_var,0 < gap ≤ 5 pts,mean,0.0006403624329017793,-0.0102036922572036,0.011484417123007159,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 0.12",0.9078588658130713,135,median 0.009473; win rate 0.822
+R_conditional,payoff_var,0 < gap ≤ 5 pts,win_rate,0.8222222222222222,,,,,,,135,
+R_conditional,payoff_var,gap > 5 pts,mean,0.01745705676251462,0.010260243711932755,0.024653869813096484,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 4.75",1.9921812984864653e-06,99,median 0.01549; win rate 0.818
+R_conditional,payoff_var,gap > 5 pts,win_rate,0.8181818181818182,,,,,,,99,
+R_conditional,payoff_var,gap > 5 pts minus gap ≤ 0 pts,diff_mean_high_minus_low,0.01061421491863863,-0.025640383164218617,0.055935984620432894,block bootstrap (6-month blocks),0.0,bootstrap,0.6228377162283771,132,"Welch t = 0.47, p = 0.642"
+R_conditional,payoff_scaled,gap ≤ 0 pts,mean,0.15598780260958806,-0.10325027211834742,0.41522587733752353,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 1.18",0.2382618275095525,33,median 0.4815; win rate 0.788
+R_conditional,payoff_scaled,gap ≤ 0 pts,win_rate,0.7878787878787878,,,,,,,33,
+R_conditional,payoff_scaled,0 < gap ≤ 5 pts,mean,0.1991332994769442,0.04782633363554806,0.3504402653183403,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 2.58",0.00989476680116272,135,median 0.4611; win rate 0.822
+R_conditional,payoff_scaled,0 < gap ≤ 5 pts,win_rate,0.8222222222222222,,,,,,,135,
+R_conditional,payoff_scaled,gap > 5 pts,mean,0.329905502739757,0.19444085396693725,0.46537015151257677,"Newey–West (6 lags, within bucket)",0.0,"HAC t, t = 4.77",1.8130133938368694e-06,99,median 0.5143; win rate 0.818
+R_conditional,payoff_scaled,gap > 5 pts,win_rate,0.8181818181818182,,,,,,,99,
+R_conditional,payoff_scaled,gap > 5 pts minus gap ≤ 0 pts,diff_mean_high_minus_low,0.1739177001301688,-0.15654065155886973,0.5203317300782548,block bootstrap (6-month blocks),0.0,bootstrap,0.3274672532746725,132,"Welch t = 1.00, p = 0.322"
+R_time,payoff_var,monthly 2003–2025,trend_slope_per_year,-3.184184575283446e-05,-0.0012286674027907809,0.001164983711285112,Newey–West (6 lags),0.0,"HAC z, z = -0.05",0.9584128891289849,267,fitted value 2003: 0.007995; 2025: 0.007289
+R_time,payoff_scaled,monthly 2003–2025,trend_slope_per_year,-0.004069117371247705,-0.020967098339053095,0.012828863596557686,Newey–West (6 lags),0.0,"HAC z, z = -0.47",0.6369489024724659,267,fitted value 2003: 0.2874; 2025: 0.1972
+R_breakeven,payoff_var,monthly 2003–2025,crash_size,-0.760863233470094,,,,,,,1,worst month 2020-03 (the scenario; held fixed)
+R_breakeven,payoff_var,monthly 2003–2025,ordinary_mean,0.010531483316724396,0.002372277039050144,0.017136484849612867,block bootstrap (6-month blocks),,,,266,mean payoff of every other month
+R_breakeven,payoff_var,monthly 2003–2025,breakeven_rate_per_year,0.1638302636127833,0.03729821800158904,0.2643160573856268,block bootstrap (6-month blocks),,,,267,
+R_breakeven,payoff_var,monthly 2003–2025,observed_rate_per_year,0.0449438202247191,0.0011378790105298821,0.25041093891860217,exact Poisson (Garwood),,,,267,1 crash(es) of this size in 22 years
+R_breakeven,payoff_var,monthly 2003–2025,breakeven_years_between,6.103878355244081,3.783349410894999,26.810932360291215,block bootstrap (6-month blocks),22.25,one-sided exact Poisson P(N ≤ observed) at the lower CI bound of the break-even rate (conservative),0.7980116875193969,267,observed: 1 in 22 years (once every 22 years; 95% CI once every 4.0 to 879 years)
+R_breakeven,payoff_var,monthly 2003–2025,breakeven_crashes_in_sample,3.6452233653844286,,,,,,,267,crashes of this size the sample would have needed (observed 1)
+R_breakeven,payoff_var,monthly 2003–2025,months_of_premium_per_crash,72.24654026292899,,,,,,,267,one crash wipes out this many ordinary months' average payoff
+R_breakeven,payoff_scaled,monthly 2003–2025,crash_size,-6.8122990947960265,,,,,,,1,worst month 2020-03 (the scenario; held fixed)
+R_breakeven,payoff_scaled,monthly 2003–2025,ordinary_mean,0.2688102886523904,0.15202126231796756,0.36836940038333915,block bootstrap (6-month blocks),,,,266,mean payoff of every other month
+R_breakeven,payoff_scaled,monthly 2003–2025,breakeven_rate_per_year,0.4555392791090872,0.2619430253631613,0.6156018491959169,block bootstrap (6-month blocks),,,,267,
+R_breakeven,payoff_scaled,monthly 2003–2025,observed_rate_per_year,0.0449438202247191,0.0011378790105298821,0.25041093891860217,exact Poisson (Garwood),,,,267,1 crash(es) of this size in 22 years
+R_breakeven,payoff_scaled,monthly 2003–2025,breakeven_years_between,2.195200383061878,1.6244265693908717,3.8176240753636663,block bootstrap (6-month blocks),22.25,one-sided exact Poisson P(N ≤ observed) at the lower CI bound of the break-even rate (conservative),0.020097366624578283,267,observed: 1 in 22 years (once every 22 years; 95% CI once every 4.0 to 879 years)
+R_breakeven,payoff_scaled,monthly 2003–2025,breakeven_crashes_in_sample,10.13574896017719,,,,,,,267,crashes of this size the sample would have needed (observed 1)
+R_breakeven,payoff_scaled,monthly 2003–2025,months_of_premium_per_crash,25.34240459674254,,,,,,,267,one crash wipes out this many ordinary months' average payoff
+R_jensen,vol_spread_pts,monthly 2003–2025,mean,3.6759748023820147,2.515470403333694,4.74173309018417,block bootstrap (6-month blocks),,,,267,mean VIX − realised vol (vol points)
+R_jensen,vol_spread_pts,monthly 2003–2025,share_vix_above_realised,0.8164794007490637,0.7640449438202247,0.8651685393258427,block bootstrap (6-month blocks),,,,267,
+R_jensen,rv_fwd21,monthly 2003–2025,uncond_jensen_gap_pts,3.4374038736215584,1.5108064346686343,5.2748348796055105,block bootstrap (6-month blocks),,,,267,√E[RV] − E[√RV]; an upper bound (also counts vol moving between months)
+R_jensen,rv_fwd21,monthly 2003–2025,cond_convexity_pts,1.5468988755882995,1.0108297502852097,2.047696829916647,block bootstrap (6-month blocks),,,,267,"mean(VIX)·(1 − E_t√RV/√E_tRV); log-RV forecast R² 0.51, residual var 0.505"
+R_jensen,rv_fwd21,monthly 2003–2025,cond_convexity_share_of_spread,0.42081324240468576,0.23424130408726382,0.7331789599807432,block bootstrap (6-month blocks),,,,267,
+R_jensen,rv_fwd21,monthly 2003–2025,fair_vix_share_above_realised,0.7078651685393258,0.6292134831460674,0.7640449438202247,block bootstrap (6-month blocks),,,,267,share of months a VIX with zero premium (VIX² = E_t[RV]) would still beat realised vol
+R_jensen,rv_fwd21,monthly 2003–2025,cond_vol_ratio,0.9188673463802471,,,,,,,267,E_t[√RV] / √E_t[RV] by smearing; lognormal check exp(−σ²/8) = 0.9389
+R_case,case_study,2020-03,vix_at_t,33.42,,,,,,,1,t = 2020-03-02
+R_case,case_study,2020-03,vix_at_t_percentile,0.9438202247191011,,,,,,,1,"share of sample months with a lower VIX at t (descriptive, full sample)"
+R_case,case_study,2020-03,past_rv_vol_at_t,29.546639163944054,,,,,,,1,vol points
+R_case,case_study,2020-03,realised_vol_fwd,93.41053867043557,,,,,,,1,vol points
+R_case,case_study,2020-03,payoff_var,-0.760863233470094,,,,,,,1,
+R_case,case_study,2020-03,payoff_scaled,-6.8122990947960265,,,,,,,1,
+R_case,case_study,2020-03,payoff_scaled_rank,1.0,,,,,,,1,1 = worst of 267 months
+R_case,case_study,2020-03,spx_return_window,-0.1636253274914593,,,,,,,1,simple return
+R_case,case_study,2020-03,spx_max_drawdown_window,-0.27597624886016936,,,,,,,1,vs the close at t
+R_case,case_study,2020-03,vix_max_window,82.69,,,,,,,1,on 2020-03-16
+R_case,case_study,2020-03,largest_daily_move,-0.12765219747281742,,,,,,,1,log return on 2020-03-16
+R_case,case_study,2020-03,big_move_days,5.0,,,,,,,1,"days with an absolute return above 3× the VIX-implied daily s.d. (2.11%), of 21"
+R_case,case_study,2020-03,premium_gone_by_day,5.0,,,,,,,1,first trading day the accrued realised variance exceeded the implied variance
+R_case,case_study,2020-03,months_of_premium_lost,25.34240459674254,,,,,,,1,loss ÷ mean scaled payoff of all other months
+R_case,case_study,2020-03,months_to_recover,12.0,,,,,,,1,until cumulative scaled payoff from this month is ≥ 0 (nan = not by sample end)
+R_case,case_study,2025-04,vix_at_t,21.77,,,,,,,1,t = 2025-04-01
+R_case,case_study,2025-04,vix_at_t_percentile,0.7303370786516854,,,,,,,1,"share of sample months with a lower VIX at t (descriptive, full sample)"
+R_case,case_study,2025-04,past_rv_vol_at_t,19.77812251965426,,,,,,,1,vol points
+R_case,case_study,2025-04,realised_vol_fwd,47.68785376137068,,,,,,,1,vol points
+R_case,case_study,2025-04,payoff_var,-0.18001984963658754,,,,,,,1,
+R_case,case_study,2025-04,payoff_scaled,-3.798424832641657,,,,,,,1,
+R_case,case_study,2025-04,payoff_scaled_rank,4.0,,,,,,,1,1 = worst of 267 months
+R_case,case_study,2025-04,spx_return_window,-0.005135687716069093,,,,,,,1,simple return
+R_case,case_study,2025-04,spx_max_drawdown_window,-0.11544323521281574,,,,,,,1,vs the close at t
+R_case,case_study,2025-04,vix_max_window,52.33,,,,,,,1,on 2025-04-08
+R_case,case_study,2025-04,largest_daily_move,0.09089487983303646,,,,,,,1,log return on 2025-04-09
+R_case,case_study,2025-04,big_move_days,3.0,,,,,,,1,"days with an absolute return above 3× the VIX-implied daily s.d. (1.37%), of 21"
+R_case,case_study,2025-04,premium_gone_by_day,3.0,,,,,,,1,first trading day the accrued realised variance exceeded the implied variance
+R_case,case_study,2025-04,months_of_premium_lost,14.75231397434261,,,,,,,1,loss ÷ mean scaled payoff of all other months
+R_case,case_study,2025-04,months_to_recover,6.0,,,,,,,1,until cumulative scaled payoff from this month is ≥ 0 (nan = not by sample end)

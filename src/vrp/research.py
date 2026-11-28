@@ -416,8 +416,8 @@ def test_time(monthly: pd.DataFrame, s: StatsSettings) -> pd.DataFrame:
                 test_name=f"HAC z, z = {tr['slope'] / tr['se']:.2f}",
                 p_value=tr["p"],
                 n=len(monthly),
-                note=f"fitted value 1990: {tr['intercept']:.4g}; "
-                f"2025: {tr['intercept'] + tr['slope'] * t_years[-1]:.4g}",
+                note=f"fitted value {monthly.index[0].year}: {tr['intercept']:.4g}; "
+                f"{monthly.index[-1].year}: {tr['intercept'] + tr['slope'] * t_years[-1]:.4g}",
             )
         )
     return pd.DataFrame(rows, columns=ROW_COLUMNS)

@@ -94,6 +94,22 @@ class Numbers:
     monthly: pd.DataFrame
     sanity: pd.DataFrame
     rs: research.ResearchSettings
+    sfx: str = ""  # figure/table suffix of this sample ("" = full 1990–2025)
+    full: Numbers | None = None  # the full-sample numbers, when this is the headline sample
+
+    def png(self, name: str) -> str:
+        """File name of a figure for this sample, e.g. '07_test1_mean_ci_post2003.png'."""
+        return f"{name}{self.sfx}.png"
+
+    @property
+    def since(self) -> int:
+        """First year of this sample."""
+        return int(self.monthly.index[0].year)
+
+    @property
+    def years_span(self) -> float:
+        """Sample length in years (months / 12)."""
+        return len(self.monthly) / 12
 
     def row(
         self,
@@ -119,30 +135,48 @@ class Numbers:
         """One research claim row by id (e.g. 'R-9')."""
         return self.rclaims.set_index("id").loc[cid]
 
+    def pclaim(self, cid: str) -> pd.Series:
+        """One v2 claim row by id (e.g. 'C2')."""
+        return self.pclaims.set_index("id").loc[cid]
+
     def case(self, month: str, statistic: str) -> float:
         """One case-study number (e.g. '2020-03', 'premium_gone_by_day')."""
         return float(self.row("R_case", "case_study", statistic, sample=month)["estimate"])
 
 
-def load_numbers(cfg: Config) -> Numbers:
-    """Read every generated table the deck quotes."""
+def load_numbers(cfg: Config, headline: bool = True) -> Numbers:
+    """Read every generated table the deck quotes.
+
+    ``headline=True`` (the pitch) reads the headline-sample tables (``headline:`` in
+    config.yaml, the live-VIX era) and attaches the full-sample numbers as ``.full``.
+    """
     from vrp.pipeline import read_processed  # local import: pipeline imports this module
+
+    sfx = cfg["headline"]["suffix"] if headline else ""
+
+    def name(f: str) -> str:
+        p = Path(f)
+        return f"{p.stem}{sfx}{p.suffix}"
 
     rep = cfg.path("reports")
     ro = cfg["research"]["outputs"]
     panel = read_processed(cfg, "daily_panel")
     monthly = read_processed(cfg, "monthly_sample")
+    if headline:
+        monthly = monthly[monthly[cfg["headline"]["flag"]].astype(bool)]
     return Numbers(
-        stats=pd.read_csv(rep / cfg["stats"]["outputs"]["tables"]),
-        research=pd.read_csv(rep / ro["tables"]),
-        rclaims=pd.read_csv(rep / ro["claims"].replace(".md", ".csv")),
-        pclaims=pd.read_csv(rep / "pitch_claims.csv"),
-        years=pd.read_csv(rep / ro["rv_by_year"], index_col=0),
-        rolling=pd.read_csv(rep / ro["rolling"], index_col=0, parse_dates=[0]),
-        breakeven=pd.read_csv(rep / ro["breakeven"], dtype={"worst_month": str}),
+        stats=pd.read_csv(rep / name(cfg["stats"]["outputs"]["tables"])),
+        research=pd.read_csv(rep / name(ro["tables"])),
+        rclaims=pd.read_csv(rep / name(ro["claims"].replace(".md", ".csv"))),
+        pclaims=pd.read_csv(rep / name("pitch_claims.csv")),
+        years=pd.read_csv(rep / name(ro["rv_by_year"]), index_col=0),
+        rolling=pd.read_csv(rep / name(ro["rolling"]), index_col=0, parse_dates=[0]),
+        breakeven=pd.read_csv(rep / name(ro["breakeven"]), dtype={"worst_month": str}),
         monthly=monthly,
-        sanity=validate.sanity_table(panel, monthly, cfg),
+        sanity=validate.sanity_table(panel, read_processed(cfg, "monthly_sample"), cfg),
         rs=research.ResearchSettings.from_config(cfg),
+        sfx=sfx,
+        full=load_numbers(cfg, headline=False) if headline else None,
     )
 
 
@@ -413,7 +447,8 @@ def slide_i1(prs, cfg: Config, n: Numbers, fig: Path) -> None:
             "S&P options prices.",
             "VIX² is the price of next month's variance. Selling it is a bet that the market "
             "will be calmer than options imply.",
-            "Each month, 1990–2025, we compare what the VIX implied with the variance the "
+            f"Each month since {n.monthly.index[0]:%b %Y} (the live VIX), we compare what the "
+            "VIX implied with the variance the "
             "S&P actually delivered over the next 21 trading days.",
             [
                 ("Sign: implied − realised. ", True, NAVY),
@@ -424,7 +459,7 @@ def slide_i1(prs, cfg: Config, n: Numbers, fig: Path) -> None:
     )
     _picture(
         s,
-        fig / "02_vix_vs_realised_vol.png",
+        fig / n.png("02_vix_vs_realised_vol"),
         4.85,
         Y0 + 0.1,
         7.9,
@@ -488,7 +523,8 @@ def slide_i2(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         x,
         y + rh * len(data) + 0.08,
         w,
-        "Benchmarks: CFA Institute Enterprising Investor, 31 Jul 2024. Nothing adjusted to match.",
+        "Benchmarks: CFA Institute Enterprising Investor, 31 Jul 2024. Nothing adjusted to "
+        "match. Checks use the full 1990–2025 dataset.",
     )
     _picture(
         s,
@@ -506,8 +542,9 @@ def slide_i2(prs, cfg: Config, n: Numbers, fig: Path) -> None:
             lab("Sources: ", "VIX from Cboe via FRED; S&P 500 from Yahoo Finance."),
             lab(
                 "Sample: ",
-                f"{len(n.monthly)} months, Jan 1990 to Dec 2025, VIX read on the first "
-                "trading day of each month.",
+                f"{len(n.monthly)} months, {n.monthly.index[0]:%b %Y} to "
+                f"{n.monthly.index[-1]:%b %Y} (the live VIX), read on the first trading day "
+                "of each month.",
             ),
             lab(
                 "No look-ahead: ",
@@ -515,9 +552,9 @@ def slide_i2(prs, cfg: Config, n: Numbers, fig: Path) -> None:
                 "t+1 to t+21.",
             ),
             lab(
-                "Pre-2003 caveat: ",
-                "the VIX before Sept 2003 is back-calculated by Cboe, so every key result is "
-                "re-checked on post-2003 data.",
+                "Why 2003: ",
+                "the VIX before Sept 2003 was back-calculated by Cboe, not what traders saw, so "
+                "our evidence starts with the live VIX. The longer history is in the backup.",
             ),
         ],
         size=14,
@@ -530,12 +567,13 @@ def slide_r1(prs, cfg: Config, n: Numbers, fig: Path) -> None:
     mean = n.row("1_mean", "payoff_scaled", "mean", method="Newey")
     med = n.row("1_mean", "payoff_scaled", "median")
     spr = n.row("1_mean", "vol_spread_pts", "mean", method="Newey")
-    post = n.row("5_robustness", "payoff_scaled", "mean", sample="post-2003 only (live VIX)")
+    c2 = n.pclaim("C2")
     s = _content_slide(prs, cfg)
     _title(
         s,
         "Does the VIX Over-Forecast Volatility?",
-        f"Yes: the variance seller wins in {pct(win['estimate'], 0)} of months, about 5 in 6",
+        f"Yes: since {n.since} the variance seller wins in {pct(win['estimate'], 0)} of months, "
+        f"about {round(6 * win['estimate'])} in 6",
     )
     w, gap = 2.9, 0.2
     stats = [
@@ -548,7 +586,7 @@ def slide_r1(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         _stat(s, X0 + i * (w + gap) + 0.05, Y0 + 0.05, w, big, label, sub)
     _picture(
         s,
-        fig / "07_test1_mean_ci.png",
+        fig / n.png("07_test1_mean_ci"),
         X0,
         Y0 + 1.7,
         X1 - X0,
@@ -556,9 +594,10 @@ def slide_r1(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         "Mean seller payoff with 95% confidence intervals under three standard-error methods",
     )
     s.notes_slide.notes_text_frame.text = (
-        f"Post-2003 only (live VIX): mean {pct(post['estimate'])} "
-        f"{ci_pct(post['ci_low'], post['ci_high'])}. Survives every robustness check "
-        "(pitch_claims.md). CIs: Newey–West 6 lags / 6-month block bootstrap."
+        f"Live-VIX era ({n.since}–{n.monthly.index[-1].year}). In raw variance the mean is "
+        + ("significant" if c2["supported"] else "positive but not significant")
+        + "; the scaled payoff is the headline measure. CIs: Newey–West 6 lags / 6-month "
+        "block bootstrap. Longer back-calculated history: backup slide."
     )
 
 
@@ -604,7 +643,7 @@ def slide_r2(prs, cfg: Config, n: Numbers, fig: Path) -> None:
     )
     _picture(
         s,
-        fig / "09_test3_selloff.png",
+        fig / n.png("09_test3_selloff"),
         4.75,
         Y0 + 0.6,
         8.05,
@@ -628,7 +667,7 @@ def slide_r3(prs, cfg: Config, n: Numbers, fig: Path) -> None:
     )
     _picture(
         s,
-        fig / "17_case_studies.png",
+        fig / n.png("17_case_studies"),
         X0,
         Y0 + 0.05,
         7.1,
@@ -693,12 +732,13 @@ def slide_r4(prs, cfg: Config, n: Numbers, fig: Path) -> None:
     )
     _picture(
         s,
-        fig / "12_rv_dynamics.png",
+        fig / n.png("12_rv_dynamics"),
         X0,
         Y0 + 0.05,
         X1 - X0,
         3.4,
-        "Calendar-month realised volatility 1990–2025 with fitted trend, and its autocorrelation",
+        f"Calendar-month realised volatility since {n.since} with fitted trend, and its "
+        "autocorrelation",
     )
     col = (X1 - X0 - 0.4) / 3
     blocks = [
@@ -710,7 +750,8 @@ def slide_r4(prs, cfg: Config, n: Numbers, fig: Path) -> None:
         (
             "But shocks fade fast",
             f"Half-life about {num(hl['estimate'])} months; vol always returns to its normal "
-            f"level (unit root rejected). No trend since 1990 (p{NBSP}={NBSP}{tr['p_value']:.2f}).",
+            f"level (unit root rejected). No trend since {n.since} (p{NBSP}={NBSP}"
+            f"{tr['p_value']:.2f}).",
         ),
         (
             "Most irregular years",
@@ -750,7 +791,7 @@ def slide_r5(prs, cfg: Config, n: Numbers, fig: Path) -> None:
     )
     _picture(
         s,
-        fig / "14_conditional_premium.png",
+        fig / n.png("14_conditional_premium"),
         X0,
         Y0 + 0.05,
         X1 - X0,
@@ -785,58 +826,75 @@ def slide_r5(prs, cfg: Config, n: Numbers, fig: Path) -> None:
 
 
 def slide_r6(prs, cfg: Config, n: Numbers, fig: Path) -> None:
-    """R6: is the premium changing; break-even pending."""
+    """R6: is the premium shrinking, and the break-even test (live-VIX era only)."""
+    alpha = float(cfg["stats"]["alpha"])
     tr = n.row("R_time", "payoff_scaled", "trend_slope_per_year")
     c9 = n.rclaim("R-9")
     roll = n.rolling["mean"]
-    first, last, low = roll.iloc[0], roll.iloc[-1], roll.min()
     s = _content_slide(prs, cfg)
     _title(
         s,
         "Is the Premium Shrinking?",
-        "Lower than in the 1990s, but not significantly shrinking",
+        (
+            f"No: since {n.since} there is no trend, just deep dips after crashes"
+            if not c9["supported"] and tr["p_value"] >= alpha
+            else f"The premium has fallen since {n.since}"
+        ),
     )
     _picture(
         s,
-        fig / "15_rolling_premium.png",
+        fig / n.png("15_rolling_premium"),
         X0,
         Y0 + 0.05,
         6.9,
         4.9,
-        "Rolling 60-month mean of the scaled seller payoff, with a 95% band and linear trend",
+        f"Rolling {int(n.rolling['window_months'].iloc[0])}-month mean of the scaled seller "
+        "payoff, with a 95% band and linear trend",
     )
-    tb = _textbox(s, 7.7, Y0 + 0.05, 5.0, 2.6, "body")
+    tb = _textbox(s, 7.7, Y0 + 0.05, 5.0, 2.3, "body")
     _write(
         tb.text_frame,
         [
-            f"The 5-year premium was about {pct(first, 0)} in the mid-1990s, fell to "
-            f"{pct(low, 0)} after COVID, and is {pct(last, 0)} now.",
-            f"Linear trend {pct(tr['estimate'], 2)} per year "
-            f"(p{NBSP}={NBSP}{tr['p_value']:.3f}); not significant after correcting for "
-            f"multiple tests (p{NBSP}={NBSP}{c9['p_holm']:.3f}).",
+            lab(
+                "No trend: ",
+                f"{pct(tr['estimate'], 2)} per year (p{NBSP}={NBSP}{tr['p_value']:.2f}).",
+            ),
+            lab(
+                "5-year premium: ",
+                f"{pct(roll.iloc[0], 0)} in the window ending "
+                f"{roll.index[0]:%b}{NBSP}{roll.index[0]:%Y}, {pct(roll.min(), 0)} at its low "
+                f"(window ending {roll.idxmin():%b}{NBSP}{roll.idxmin():%Y}), "
+                f"{pct(roll.iloc[-1], 0)} now.",
+            ),
         ],
-        size=14,
+        size=13,
     )
     be = n.row("R_breakeven", "payoff_scaled", "breakeven_years_between")
     be_v = n.row("R_breakeven", "payoff_var", "breakeven_years_between")
     c10, c11 = n.rclaim("R-10"), n.rclaim("R-11")
-    worst = _worst_label(n)
-    _card(s, 7.7, Y0 + 3.0, 5.0, 1.95, "card break-even")
-    tb2 = _textbox(s, 7.85, Y0 + 3.05, 4.7, 1.85, "text break-even")
+    sig = (
+        f"Significant ({p_short(c10['p_holm'])} after correction)."
+        if c10["supported"]
+        else f"Suggestive, not proven: one crash in {be['null_value']:.0f} years is too few "
+        f"({p_short(c10['p_holm'])} after correction)."
+    )
+    _card(s, 7.7, Y0 + 2.45, 5.0, 2.5, "card break-even")
+    tb2 = _textbox(s, 7.85, Y0 + 2.5, 4.7, 2.4, "text break-even")
     _write(
         tb2.text_frame,
         [
             [("Too pessimistic? The break-even test", True, NAVY)],
             [
-                (f"A {worst}-sized loss would have to hit every ", False, INK),
+                (f"A {_worst_label(n)}-sized loss would have to hit every ", False, INK),
                 (f"{num(be['estimate'])} years", True, NAVY),
                 (
-                    f" [{num(be['ci_low'])}, {num(be['ci_high'])}] for the seller to break even. "
-                    f"It hit once in {be['null_value']:.0f} years ({p_short(c10['p_holm'])}).",
+                    f" [{num(be['ci_low'])}, {num(be['ci_high'])}] to wipe out the premium; "
+                    f"there has been one in {be['null_value']:.0f} years.",
                     False,
                     INK,
                 ),
             ],
+            [(sig, False, INK)],
             [
                 (
                     f"In raw variance: every {num(be_v['estimate'])} years; "
@@ -847,7 +905,7 @@ def slide_r6(prs, cfg: Config, n: Numbers, fig: Path) -> None:
                 )
             ],
         ],
-        size=12.5,
+        size=12,
         bullet=False,
         space_before=4,
     )
@@ -868,53 +926,146 @@ def slide_team(prs, cfg: Config, title: str, bar: str, who: str, lines: list[str
     _todo_box(s, X0 + 0.1, Y0 + 0.3, X1 - X0 - 0.2, 4.6, who, lines)
 
 
+SMALL_NUMBERS = ["zero", "one", "two", "three", "four", "five", "six"]
+
+
+def out_of_six(share: float, tol: float = 0.03) -> str | None:
+    """'five months out of six' when ``share`` is within ``tol`` of k/6, else None."""
+    k = round(6 * share)
+    return f"{SMALL_NUMBERS[k]} months out of six" if abs(k / 6 - share) <= tol else None
+
+
 def slide_verdict(prs, cfg: Config, n: Numbers) -> None:
-    """Draft conclusion: three columns, research filled, the rest pending."""
+    """Provisional verdict: headline, research column filled, teammates' columns pending."""
     win = n.row("2_shape", "payoff_scaled", "win_rate", method="Wilson")
+    mean = n.row("1_mean", "payoff_scaled", "mean", method="Newey")
     share = n.row("3_crash", "payoff_var", "loss_share_in_decile_1")
     be = n.row("R_breakeven", "payoff_scaled", "breakeven_years_between")
-    be = n.row("R_breakeven", "payoff_scaled", "breakeven_years_between")
+    proven = bool(n.rclaim("R-10")["supported"])
+    raw_mean_ok, raw_be_ok = bool(n.pclaim("C2")["supported"]), bool(n.rclaim("R-11")["supported"])
+    years = f"{be['null_value']:.0f}"
     s = _content_slide(prs, cfg)
     _title(
         s,
         "Verdict",
-        "Draft: pessimistic on average and paid for crash risk; 'too pessimistic' is still open",
+        f"Provisional: since {n.since} the VIX over-prices risk, and so far the premium has "
+        "outrun crashes",
     )
-    col = (X1 - X0 - 0.4) / 3
-    cols = [
-        (
-            "Research",
+    head = _textbox(s, X0, Y0 + 0.05, X1 - X0, 1.0, "headline")
+    _write(
+        head.text_frame,
+        [
             [
-                f"The seller wins {pct(win['estimate'], 0)} of months.",
-                f"{pct(share['estimate'], 0)} of losses come in the worst 10% of S&P months.",
-                f"A {_worst_label(n)}-sized loss would need to hit every {num(be['estimate'])} "
-                f"years to wipe out the premium; it hit once in {be['null_value']:.0f} years.",
-                "No reliable early-warning signal; no significant decline in the premium.",
-            ],
-        ),
+                ("Yes, on average. ", True, NAVY),
+                (
+                    f"Since {n.since} the VIX has over-priced next month's risk, and so far the "
+                    "premium has outrun the crashes"
+                    + (
+                        ". "
+                        if proven
+                        else f", though with one {_worst_label(n).replace(NBSP, ' ')} in "
+                        f"{years} years we can't yet prove it pays for them. "
+                    )
+                    + "When the losses come, they are brutal.",
+                    False,
+                    INK,
+                ),
+            ]
+        ],
+        size=16,
+        bullet=False,
+    )
+    if raw_mean_ok or raw_be_ok:
+        raw_txt = "in raw variance terms the margin is thinner."
+    else:
+        raw_txt = "in raw variance terms neither the premium nor the margin is significant."
+    research = [
+        [
+            ("Pessimistic on average: ", True, NAVY),
+            (
+                f"the variance seller wins {pct(win['estimate'], 0)} of months and keeps about "
+                f"{pct(mean['estimate'], 0)} of implied variance (95% CI "
+                f"{pct(mean['ci_low'], 0)}{NBSP}to{NBSP}{pct(mean['ci_high'], 0)}).",
+                False,
+                INK,
+            ),
+        ],
+        [
+            ("The premium has outrun the crashes: ", True, NAVY),
+            (
+                f"a {_worst_label(n)}-sized loss would have to hit every "
+                f"{num(be['estimate'])} years to wipe it out; there has been one in {years}"
+                + ("." if proven else ", too few to prove it."),
+                False,
+                INK,
+            ),
+        ],
+        [
+            ("Brutal when it goes wrong: ", True, NAVY),
+            (
+                f"{pct(share['estimate'], 0)} of losses come in the worst 10% of months; "
+                + raw_txt,
+                False,
+                INK,
+            ),
+        ],
+        [
+            ("No early warning: ", True, NAVY),
+            (
+                "nothing known at the start of the month reliably predicts the bad months.",
+                False,
+                INK,
+            ),
+        ],
+    ]
+    cols = [
+        ("Research", research, 5.4),
         (
             "Fair-price model",
             ["Pending (teammates): is the VIX still too high after paying for crash risk?"],
+            3.3,
         ),
-        ("Strategy", ["Pending (teammates): does stepping aside cut drawdowns?"]),
+        ("Strategy", ["Pending (teammates): does stepping aside cut drawdowns?"], 3.3),
     ]
-    for i, (head, lines) in enumerate(cols):
-        x = X0 + i * (col + 0.2)
-        _card(s, x, Y0 + 0.2, col, 3.2, f"card {head}")
-        tb = _textbox(s, x + 0.2, Y0 + 0.35, col - 0.4, 2.9, f"text {head}")
-        _write(tb.text_frame, [[(head, True, NAVY)]] + lines, size=14, bullet=False)
+    gap = (X1 - X0 - sum(w for _, _, w in cols)) / (len(cols) - 1)
+    x, top, h = X0, Y0 + 1.2, 3.75
+    for head_txt, lines, w in cols:
+        _card(s, x, top, w, h, f"card {head_txt}")
+        tb = _textbox(s, x + 0.18, top + 0.12, w - 0.36, h - 0.2, f"text {head_txt}")
+        _write(tb.text_frame, [[(head_txt, True, NAVY)]] + lines, size=12.5, bullet=False)
         for p in tb.text_frame.paragraphs[1:]:
-            _set_bullet(p, 0, True, 8)
+            _set_bullet(p, 0, True, 7)
+        x += w + gap
+
+    often = out_of_six(win["estimate"]) or f"{pct(win['estimate'], 0)} of months"
+    proof = (
+        ""
+        if proven
+        else f" With only one crash that size since {n.since}, that's suggestive rather than "
+        "proven."
+    )
+    s.notes_slide.notes_text_frame.text = (
+        "So, is the VIX too pessimistic? On average, yes. Since "
+        f"{n.since} it has over-forecast risk in {often}, and even after paying for "
+        f"{_worst_label(n).replace(NBSP, ' ')} the premium comes out ahead: a crash that size "
+        f"would need to happen every {be['estimate']:.0f} years to wipe it out, and there's been "
+        f"one in {years}.{proof} And when the losses come, they come all at once, with no "
+        "warning sign beforehand.\n\n"
+        "PROVISIONAL until the fair-price model and backtest are in (Tue). If the model says "
+        "the VIX is still too high after pricing crash risk: drop 'Provisional'. If it says the "
+        "VIX is about fair once crash risk is priced: soften to 'Pessimistic, but mostly fairly "
+        "paid for crash risk'."
+    )
 
 
-def slide_appendix(prs, cfg: Config, fig: Path) -> None:
-    """Appendix: Mincer–Zarnowitz and robustness."""
+def slide_appendix(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """Appendix: Mincer–Zarnowitz (headline sample) and robustness (compares the eras)."""
     s = _content_slide(prs, cfg)
     _title(s, "Appendix: Forecast Bias and Robustness", "Supporting tests for Q&A")
     h = (Y1 - Y0 - 0.25) / 2
     _picture(
         s,
-        fig / "10_test4_mincer_zarnowitz.png",
+        fig / n.png("10_test4_mincer_zarnowitz"),
         X0,
         Y0,
         X1 - X0,
@@ -930,21 +1081,43 @@ def slide_appendix(prs, cfg: Config, fig: Path) -> None:
         h,
         "Mean payoff across robustness variants with 95% CIs",
     )
+    c17, c17f = n.pclaim("C17"), n.full.pclaim("C17")
+    s.notes_slide.notes_text_frame.text = (
+        f"Top: forecast-bias regressions since {n.since}. The VIX as a biased forecast (C17) is "
+        + ("supported" if c17["supported"] else "not supported")
+        + f" since {n.since}"
+        + (
+            "; with the 1990s back-history it is."
+            if c17f["supported"] and not c17["supported"]
+            else "."
+        )
+        + " Bottom: robustness variants over 1990–2025, including post- vs pre-2003."
+    )
 
 
-def slide_appendix_years(prs, cfg: Config, fig: Path) -> None:
-    """Appendix: vol by year."""
+def slide_appendix_years(prs, cfg: Config, n: Numbers, fig: Path) -> None:
+    """Appendix: vol by year (headline sample)."""
     s = _content_slide(prs, cfg)
-    _title(s, "Appendix: Volatility by Year", "Which years were most irregular?")
+    _title(s, "Appendix: Volatility by Year", f"Which years since {n.since} were most irregular?")
     _picture(
         s,
-        fig / "13_rv_by_year.png",
+        fig / n.png("13_rv_by_year"),
         X0,
         Y0,
         X1 - X0,
-        Y1 - Y0,
+        Y1 - Y0 - 0.3,
         "Annual realised vol and vol-of-vol by year",
     )
+    first = n.monthly.index[0]
+    if first.month != 1:
+        _caption(
+            s,
+            X0,
+            Y1 - 0.28,
+            X1 - X0,
+            f"{first.year}: vol-of-vol uses {first:%b}–Dec only (the sample starts "
+            f"{first:%b %Y}); annual vol uses the whole year.",
+        )
 
 
 def slide_appendix_breakeven(prs, cfg: Config, n: Numbers, fig: Path) -> None:
@@ -953,16 +1126,103 @@ def slide_appendix_breakeven(prs, cfg: Config, n: Numbers, fig: Path) -> None:
     _title(
         s,
         "Appendix: Break-Even Crash Frequency",
-        "How often would crashes of each size have to happen to wipe out the premium?",
+        f"How often would crashes of each size need to happen to wipe out the premium? Since "
+        f"{n.since}",
     )
     _picture(
         s,
-        fig / "16_breakeven.png",
+        fig / n.png("16_breakeven"),
         X0,
         Y0,
         X1 - X0,
         Y1 - Y0,
         "Years between crashes needed to break even vs observed, by crash size, scaled and raw",
+    )
+
+
+def _history_rows(x: Numbers) -> list[str]:
+    """One column of the backup table: the headline numbers for one sample."""
+    win = x.row("2_shape", "payoff_scaled", "win_rate", method="Wilson")
+    mean = x.row("1_mean", "payoff_scaled", "mean", method="Newey")
+    be = x.row("R_breakeven", "payoff_scaled", "breakeven_years_between")
+    tr = x.row("R_time", "payoff_scaled", "trend_slope_per_year")
+    tick = " (significant)" if x.rclaim("R-10")["supported"] else " (not significant)"
+    return [
+        pct(win["estimate"], 0),
+        f"{pct(mean['estimate'], 0)} {ci_pct(mean['ci_low'], mean['ci_high'], 0)}",
+        "significant" if x.pclaim("C2")["supported"] else "not significant",
+        f"{num(be['estimate'])} yrs vs once in {be['null_value']:.0f}{tick}",
+        f"{pct(tr['estimate'], 2)} (p{NBSP}={NBSP}{tr['p_value']:.2f}; "
+        f"{x.rclaim('R-9')['p_holm']:.2f} after correction)",
+        f"{int(x.rclaims['supported'].sum())} of {len(x.rclaims)}",
+    ]
+
+
+def slide_backup_history(prs, cfg: Config, n: Numbers) -> None:
+    """Backup (Q&A only): live-VIX era vs the longer history with back-calculated VIX."""
+    f = n.full
+    labels = [
+        "Seller wins",
+        "Average scaled payoff [95% CI]",
+        "Average raw-variance payoff",
+        f"Break-even: {_worst_label(n)}-sized loss needed every …",
+        "Trend in the premium, per year",
+        "Research claims passing",
+    ]
+    head = (
+        "",
+        f"Live VIX, {n.monthly.index[0]:%b %Y}–{n.monthly.index[-1]:%Y}",
+        f"Incl. back-calculated VIX, {f.monthly.index[0]:%b %Y}–{f.monthly.index[-1]:%Y}",
+    )
+    data = [head] + list(zip(labels, _history_rows(n), _history_rows(f), strict=True))
+    s = _content_slide(prs, cfg)
+    _title(
+        s,
+        "Backup: The Longer History",
+        "Adding the back-calculated 1990s points the same way, and makes the break-even "
+        "significant",
+    )
+    x, y, rh = X0 + 0.1, Y0 + 0.15, 0.52
+    widths = [4.5, 3.7, 3.8]
+    gt = s.shapes.add_table(
+        len(data), 3, Inches(x), Inches(y), Inches(sum(widths)), Inches(rh * len(data))
+    )
+    gt.name = "history table"
+    tbl = gt.table
+    for j, cw in enumerate(widths):
+        tbl.columns[j].width = Inches(cw)
+    for i, rowv in enumerate(data):
+        tbl.rows[i].height = Inches(rh)
+        for j, v in enumerate(rowv):
+            c = tbl.cell(i, j)
+            c.text_frame.text = ""
+            c.text_frame.paragraphs[0].add_run().text = v
+            c.fill.solid()
+            c.fill.fore_color.rgb = NAVY if i == 0 else (CARD if i % 2 == 0 else WHITE)
+            c.vertical_anchor = MSO_ANCHOR.MIDDLE
+            para = c.text_frame.paragraphs[0]
+            para.alignment = PP_ALIGN.LEFT if j == 0 else PP_ALIGN.CENTER
+            _style_run(para.runs[0], 13, i == 0 or j == 0, WHITE if i == 0 else INK)
+    pre = f.row(
+        "5_robustness", "payoff_scaled", "mean", sample="pre-2003 only (back-calculated VIX)"
+    )
+    live = pd.Timestamp(cfg["dates"]["vix_new_methodology_date"])
+    _caption(
+        s,
+        x,
+        y + rh * len(data) + 0.15,
+        sum(widths),
+        f"Before {live:%b %Y} the VIX was back-calculated by Cboe, not what traders saw. The "
+        f"1990s premium ran higher ({pct(pre['estimate'], 0)} of implied variance), which makes "
+        "the full history look like a decline; the gap between the eras is "
+        + ("significant." if f.pclaim("C21")["supported"] else "not significant after correction.")
+        + " Significant = passes our claim rule (every CI and the Holm-adjusted p).",
+    )
+    s.notes_slide.notes_text_frame.text = (
+        "Backup for Q&A, not presented. If asked 'what about before 2003?': same direction, and "
+        "the break-even test becomes significant, but we lead with the live VIX because the "
+        "earlier values were reconstructed later. Full results: research_claims.md and "
+        "pitch_claims.md (1990–2025) and their _post2003 versions."
     )
 
 
@@ -1015,9 +1275,10 @@ def build_deck(cfg: Config) -> Path:
         ],
     )
     slide_verdict(prs, cfg, n)
-    slide_appendix(prs, cfg, fig)
+    slide_appendix(prs, cfg, n, fig)
     slide_appendix_breakeven(prs, cfg, n, fig)
-    slide_appendix_years(prs, cfg, fig)
+    slide_appendix_years(prs, cfg, n, fig)
+    slide_backup_history(prs, cfg, n)
     slide_disclaimer(prs)
 
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -70,6 +70,7 @@ def save(fig: plt.Figure, name: str, cfg: Config) -> list[Path]:
     out_dir = cfg.path("figures")
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = []
+    name += cfg["plots"].get("name_suffix", "")  # headline sub-sample figures get a suffix
     for ext in cfg["plots"]["formats"]:
         p = out_dir / f"{name}.{ext}"
         fig.savefig(
@@ -84,6 +85,34 @@ def save(fig: plt.Figure, name: str, cfg: Config) -> list[Path]:
     return paths
 
 
+def span_label(cfg: Config) -> str:
+    """Years of the sample being plotted, e.g. '1990–2025' or '2003–2025' (headline)."""
+    d = cfg["dates"]
+    return cfg["plots"].get("sample_label") or (
+        f"{d['sample_start_month'][:4]}–{d['sample_end_month'][:4]}"
+    )
+
+
+def mark_live_vix(ax: plt.Axes, cfg: Config) -> None:
+    """Mark the start of the live VIX (earlier values are back-calculated), if on the axis."""
+    d = pd.Timestamp(cfg["dates"]["vix_new_methodology_date"])
+    lo, hi = (mdates.num2date(v).replace(tzinfo=None) for v in ax.get_xlim())
+    first = mdates.num2date(ax.dataLim.x0).replace(tzinfo=None)
+    if not first < d < hi:  # no plotted data before the live VIX (e.g. post-2003 figures)
+        return
+    ax.axvspan(lo, d, color=COLORS["recession"], alpha=0.12, lw=0, zorder=0)
+    ax.axvline(d, color=COLORS["ink2"], lw=1, ls="--", zorder=1)
+    ax.annotate(
+        "← VIX back-calculated | live VIX →",
+        (d, 0.03),
+        xycoords=("data", "axes fraction"),
+        ha="center",
+        fontsize=8,
+        color=COLORS["ink2"],
+        bbox={"fc": "white", "ec": "none", "alpha": 0.85, "pad": 1.5},
+    )
+
+
 def shade_events(
     ax: plt.Axes, events: pd.DataFrame, labels: dict[str, str], label_y: float = 0.985
 ) -> None:
@@ -93,8 +122,12 @@ def shade_events(
     setting y-limits with headroom so labels sit above the data.
     """
     trans = ax.get_xaxis_transform()
+    xlim = ax.get_xlim()
+    lo, hi = (mdates.num2date(v).replace(tzinfo=None) for v in xlim)
     for ev in events[events["event_id"].isin(list(labels))].itertuples(index=False):
         s, e = ev.start_date, ev.end_date
+        if e < lo or s > hi:  # outside the plotted sample (e.g. the post-2003 figures)
+            continue
         if (e - s).days < 20:  # make very short windows visible
             mid = s + (e - s) / 2
             s, e = mid - pd.Timedelta(days=12), mid + pd.Timedelta(days=12)
@@ -110,6 +143,7 @@ def shade_events(
             fontsize=7.5,
             color=COLORS["ink2"],
         )
+    ax.set_xlim(xlim)
 
 
 def headroom(ax: plt.Axes, top: float, factor: float, log_scale: bool = False) -> None:
@@ -191,6 +225,7 @@ def fig_vix_vs_rv(monthly: pd.DataFrame, events: pd.DataFrame, cfg: Config) -> l
     shade_events(ax, events, cfg["plots"]["shade_events"])
     ax.legend(loc="lower left", bbox_to_anchor=(0.0, 1.0), ncol=2, fontsize=9)
     _date_axis(ax)
+    mark_live_vix(ax, cfg)
     footnote(
         fig,
         cfg["plots"]["source_note"] + ". Realised vol = 100·√[(252/21)·Σ r²], "
@@ -359,6 +394,7 @@ def _forest(ax: plt.Axes, labels: list[str], est, lo, hi, null: float = 0.0) -> 
 def fig_test1_mean(tables: pd.DataFrame, cfg: Config) -> list[Path]:
     """07: Test 1, mean (three SE methods), median and trimmed mean, with 95% CIs."""
     t = tables[tables["test"] == "1_mean"].dropna(subset=["ci_low"])
+    n_months = int(t["n"].max())
     measures = [
         ("payoff_scaled", "Scaled payoff (fraction of IV)"),
         ("payoff_var", "Raw payoff (annualised variance)"),
@@ -386,7 +422,7 @@ def fig_test1_mean(tables: pd.DataFrame, cfg: Config) -> list[Path]:
     s = cfg["stats"]
     footnote(
         fig,
-        cfg["plots"]["source_note"] + f". {SIGN_FOOT} Monthly 1990–2025 (n = 432). "
+        cfg["plots"]["source_note"] + f". {SIGN_FOOT} Monthly {span_label(cfg)} (n = {n_months}). "
         f"Newey–West {s['nw_lags_monthly']} lags; circular block bootstrap "
         f"({s['bootstrap']['block_length']}-month blocks, {s['bootstrap']['n_resamples']:,} "
         "resamples). Blue = 95% CI excludes 0.",
@@ -468,7 +504,11 @@ def fig_test2_distribution(monthly: pd.DataFrame, tables: pd.DataFrame, cfg: Con
         fontsize=13,
     )
     fig.tight_layout()
-    footnote(fig, cfg["plots"]["source_note"] + f". {SIGN_FOOT} Monthly 1990–2025, n = 432.")
+    footnote(
+        fig,
+        cfg["plots"]["source_note"]
+        + f". {SIGN_FOOT} Monthly {span_label(cfg)}, n = {len(monthly)}.",
+    )
     return save(fig, "08_test2_distribution", cfg)
 
 
@@ -627,8 +667,9 @@ def fig_test4_mz(monthly: pd.DataFrame, mz: dict, tables: pd.DataFrame, cfg: Con
     fig.tight_layout()
     footnote(
         fig,
-        cfg["plots"]["source_note"] + ". Mincer–Zarnowitz regressions, monthly 1990–2025 "
-        f"(n = 432); Newey–West {cfg['stats']['nw_lags_monthly']} lags; brackets = 95% CIs. "
+        cfg["plots"]["source_note"] + f". Mincer–Zarnowitz regressions, monthly {span_label(cfg)} "
+        f"(n = {len(monthly)}); Newey–West {cfg['stats']['nw_lags_monthly']} lags; "
+        "brackets = 95% CIs. "
         "The only regressor is the VIX at the close of t.",
     )
     return save(fig, "10_test4_mincer_zarnowitz", cfg)
@@ -686,7 +727,8 @@ def make_stats_figures(monthly: pd.DataFrame, res: object, cfg: Config) -> list[
     paths += fig_test2_distribution(monthly, t, cfg)
     paths += fig_test3_selloff(monthly, res.deciles["payoff_scaled"], t, cfg)  # type: ignore
     paths += fig_test4_mz(monthly, res.mz_line, t, cfg)  # type: ignore[attr-defined]
-    paths += fig_test5_robustness(t, cfg)
+    if (t["test"] == "5_robustness").any():  # not run on the headline sub-sample
+        paths += fig_test5_robustness(t, cfg)
     return paths
 
 
@@ -760,7 +802,7 @@ def fig_rv_dynamics(res: object, events: pd.DataFrame, cfg: Config) -> list[Path
     ax2.set_ylabel("Autocorrelation of log realised variance")
     ax2.set_title("Vol clusters, but the memory is short", fontsize=11)
     ax2.set_ylim(-0.1, 1)
-    fig.suptitle("Realised-volatility dynamics, 1990–2025", fontweight="bold", fontsize=13)
+    fig.suptitle(f"Realised-volatility dynamics, {span_label(cfg)}", fontweight="bold", fontsize=13)
     fig.tight_layout()
     _foot_wrapped(
         fig,
@@ -866,7 +908,7 @@ def fig_conditional_premium(res: object, cfg: Config) -> list[Path]:
     fig.tight_layout()
     _foot_wrapped(
         fig,
-        cfg["plots"]["source_note"] + f". {SIGN_FOOT} Monthly 1990–2025. Bars: mean with "
+        cfg["plots"]["source_note"] + f". {SIGN_FOOT} Monthly {span_label(cfg)}. Bars: mean with "
         f"Newey–West 95% CI (blue = excludes 0). Fixed thresholds from config. In-sample "
         "description, not a trading rule.",
     )
@@ -880,13 +922,14 @@ def fig_rolling_premium(
     roll = res.rolling  # type: ignore[attr-defined]
     t = res.tables  # type: ignore[attr-defined]
     w = int(roll["window_months"].iloc[0])
+    live = pd.Timestamp(cfg["dates"]["vix_new_methodology_date"])
     fig, ax = plt.subplots(figsize=(12, 5.4))
     ax.fill_between(
         roll.index, roll["ci_low"], roll["ci_high"], color=COLORS["implied"], alpha=0.18, lw=0
     )
     ax.plot(roll.index, roll["mean"], color=COLORS["implied"], label=f"Rolling {w}-month mean")
     full = float(monthly["payoff_scaled"].mean())
-    ax.axhline(full, color=COLORS["ink2"], ls=":", lw=1.2, label=f"Full-sample mean {full:.0%}")
+    ax.axhline(full, color=COLORS["ink2"], ls=":", lw=1.2, label=f"Sample mean {full:.0%}")
     tr = _get(t, "R_time", "payoff_scaled", "trend_slope_per_year")
     yrs = np.asarray((monthly.index - monthly.index[0]).days / 365.25)
     icpt = float(monthly["payoff_scaled"].mean() - tr["estimate"] * yrs.mean())
@@ -905,6 +948,7 @@ def fig_rolling_premium(
     ax.set_xlim(roll.index[0], roll.index[-1])
     headroom(ax, float(roll["ci_high"].max()), cfg["plots"]["headroom"])
     shade_events(ax, events, cfg["plots"]["shade_events"])
+    mark_live_vix(ax, cfg)
     ax.set_ylabel("Scaled seller payoff (% of implied variance)")
     ax.set_xlabel("Month (end of rolling window)")
     ax.set_title("Is the variance risk premium changing over time?", pad=42)
@@ -914,7 +958,13 @@ def fig_rolling_premium(
         fig,
         cfg["plots"]["source_note"] + f". {SIGN_FOOT} Band: Newey–West "
         f"{cfg['stats']['nw_lags_monthly']}-lag 95% CI of each window's mean (windows overlap, so "
-        "the band is not a test). The trend test is in research_claims.md (R-9).",
+        "the band is not a test). The trend test is in research_claims.md (R-9)."
+        + (
+            f" Windows ending before {live + pd.DateOffset(months=w):%b %Y} include "
+            f"back-calculated (pre-{live:%b %Y}) VIX months."
+            if roll.index[0] < live
+            else ""
+        ),
     )
     return save(fig, "15_rolling_premium", cfg)
 

@@ -14,6 +14,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import subprocess
 import sys
@@ -245,6 +246,8 @@ def run_figures(cfg: Config) -> None:
                 pd.read_csv(interim / fname, index_col=0, parse_dates=[0]).index
             )
     paths = plots.make_all_figures(panel, monthly, ev, usrec, coverage, cfg)
+    hcfg, sub = headline_view(cfg, monthly)
+    paths += plots.fig_vix_vs_rv(sub, ev, hcfg)  # live-VIX version for the deck
     log.info("figures stage finished: %d files", len(paths))
 
 
@@ -297,6 +300,88 @@ def run_stats(cfg: Config) -> None:
     )
 
 
+# ------------------------------------------------------------------ headline sample
+def headline_view(cfg: Config, monthly: pd.DataFrame) -> tuple[Config, pd.DataFrame]:
+    """The headline sub-sample (``headline.flag`` months) and a config for its outputs.
+
+    The returned config starts the sample at the first flagged month and adds
+    ``headline.suffix`` to every stats/research output name and figure name, so the full-sample
+    outputs are never overwritten.
+    """
+    h = cfg["headline"]
+    sub = monthly[monthly[h["flag"]].astype(bool)]
+    if sub.empty:
+        raise ValueError(f"headline flag {h['flag']!r} selects no months")
+    raw = copy.deepcopy(cfg.raw)
+    raw["dates"]["sample_start_month"] = f"{sub.index[0]:%Y-%m}"
+    sfx = h["suffix"]
+    for sec in ("stats", "research"):
+        raw[sec]["outputs"] = {
+            k: (lambda p: f"{Path(p).stem}{sfx}{Path(p).suffix}")(v)
+            for k, v in raw[sec]["outputs"].items()
+        }
+    raw["plots"]["name_suffix"] = sfx
+    raw["plots"]["sample_label"] = f"{sub.index[0].year}–{sub.index[-1].year}"
+    return Config(raw=raw, root=cfg.root), sub
+
+
+def relabel_sample(df: pd.DataFrame, cfg: Config, hcfg: Config) -> pd.DataFrame:
+    """Replace the full-sample years in text columns ('1990–2025', 'since 1990') by the headline's.
+
+    Result rows carry fixed sample labels; claims are matched on them first, then relabelled.
+    """
+    d0, d1 = (cfg["dates"][k][:4] for k in ("sample_start_month", "sample_end_month"))
+    h0 = hcfg["dates"]["sample_start_month"][:4]
+    out = df.copy()
+    for c in out.columns:
+        if pd.api.types.is_object_dtype(out[c]) or pd.api.types.is_string_dtype(out[c]):
+            out[c] = (
+                out[c]
+                .astype(str)
+                .str.replace(f"{d0}–{d1}", f"{h0}–{d1}", regex=False)
+                .str.replace(f"since {d0}", f"since {h0}", regex=False)
+                .where(out[c].notna())
+            )
+    return out
+
+
+def run_stats_headline(cfg: Config) -> None:
+    """Tests 1–4 on the headline sample → suffixed tables, claims (own Holm family), figures."""
+    hcfg, monthly = headline_view(cfg, read_processed(cfg, "monthly_sample"))
+    tests = [str(t) for t in cfg["headline"]["stats_tests"]]
+    res = stats.run_core_tests(monthly, hcfg)
+    claims = relabel_sample(stats_report.evaluate_claims(res, tests), cfg, hcfg)
+    out = hcfg["stats"]["outputs"]
+    reports = cfg.path("reports")
+    sfx = cfg["headline"]["suffix"]
+    span = f"{len(monthly)} months, {monthly.index[0]:%B %Y} to {monthly.index[-1]:%B %Y}"
+    # The claims writer looks rows up by the standard labels, so relabel the tables after it.
+    stats_report.write_claims(res, claims, reports / out["claims"], sample_text=span)
+    res.tables = relabel_sample(res.tables, cfg, hcfg)
+    tables_path = write_csv(res.tables, reports / out["tables"], index_label=None)
+    claims_csv = write_csv(claims, reports / f"pitch_claims{sfx}.csv", index_label=None)
+    figs = plots.make_stats_figures(monthly, res, hcfg)
+    _update_manifest(
+        cfg,
+        [file_entry(tables_path, res.tables, cfg), file_entry(claims_csv, claims, cfg)],
+        f"stats{sfx}",
+        {
+            "months": len(monthly),
+            "tests": tests,
+            "claims_supported": int(claims["supported"].sum()),
+            "claims_total": int(len(claims)),
+        },
+    )
+    log.info(
+        "stats headline (%s): %d months, %d/%d claims supported, %d figure files",
+        sfx,
+        len(monthly),
+        int(claims["supported"].sum()),
+        len(claims),
+        len(figs),
+    )
+
+
 def _update_manifest(cfg: Config, entries: list[dict[str, object]], key: str, info: dict) -> None:
     """Add file entries (replacing older ones for the same paths) and a stage section."""
     man_path = cfg.path("reports") / "manifest.json"
@@ -313,12 +398,23 @@ def _update_manifest(cfg: Config, entries: list[dict[str, object]], key: str, in
     man_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
-def run_research(cfg: Config) -> None:
-    """Research section: tests R-1…R-11, tables, summary, claims and figures 12–17."""
+def run_research(cfg: Config, headline: bool = False) -> None:
+    """Research section: tests R-1…R-11, tables, summary, claims and figures 12–17.
+
+    ``headline=True`` reruns it on the headline sample (``headline:`` in config.yaml) and writes
+    suffixed outputs; its claims are their own Holm family.
+    """
     panel = read_processed(cfg, "daily_panel")
     monthly = read_processed(cfg, "monthly_sample")
     ev = pd.read_csv(cfg.path("processed") / "events.csv", parse_dates=["start_date", "end_date"])
+    base = cfg
+    if headline:
+        cfg, monthly = headline_view(base, monthly)
     res = research.run_research(panel, monthly, cfg)
+    claims = research_report.evaluate_research_claims(res)  # matched on the standard labels
+    if headline:
+        res.tables = relabel_sample(res.tables, base, cfg)
+        claims = relabel_sample(claims, base, cfg)
     out = cfg["research"]["outputs"]
     reports = cfg.path("reports")
     reports.mkdir(parents=True, exist_ok=True)
@@ -329,7 +425,6 @@ def run_research(cfg: Config) -> None:
     roll_path = write_csv(res.rolling, reports / out["rolling"])
     be_path = write_csv(res.breakeven, reports / out["breakeven"], index_label=None)
     case_path = write_csv(res.case_paths, reports / out["case_paths"])
-    claims = research_report.evaluate_research_claims(res)
     claims_csv = write_csv(claims, reports / out["claims"].replace(".md", ".csv"), index_label=None)
     research_report.write_research_summary(res, claims, reports / out["summary"])
     research_report.write_research_claims(res, claims, reports / out["claims"])
@@ -346,8 +441,9 @@ def run_research(cfg: Config) -> None:
             file_entry(case_path, res.case_paths, cfg),
             file_entry(claims_csv, claims, cfg),
         ],
-        "research",
+        "research" + (cfg["plots"].get("name_suffix", "") if headline else ""),
         {
+            "months": len(monthly),
             "settings": {k: v for k, v in cfg["research"].items() if k != "outputs"},
             "claims_supported": int(claims["supported"].sum()),
             "claims_total": int(len(claims)),
@@ -382,8 +478,10 @@ def main(argv: list[str] | None = None) -> int:
         run_figures(cfg)
     if args.stage in ("all", "stats"):
         run_stats(cfg)
+        run_stats_headline(cfg)
     if args.stage in ("all", "research"):
         run_research(cfg)
+        run_research(cfg, headline=True)
     if args.stage in ("all", "deck"):
         from vrp import deck
 

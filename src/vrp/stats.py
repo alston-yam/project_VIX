@@ -1182,6 +1182,20 @@ class StatsResults:
     settings: StatsSettings
 
 
+def run_core_tests(monthly: pd.DataFrame, cfg: Config) -> StatsResults:
+    """Run Tests 1–4 only (no robustness variants), e.g. on the headline sub-sample."""
+    s = StatsSettings.from_config(cfg)
+    boot = Bootstrapper(s.block_length, s.n_boot, s.boot_seed)
+    t3, deciles = test_crash(monthly, s, boot)
+    tables = pd.concat(
+        [test_mean(monthly, s, boot), test_shape(monthly, s, boot), t3, test_forecast(monthly, s)],
+        ignore_index=True,
+    )
+    log.info("stats (core tests 1–4): %d months, %d result rows", len(monthly), len(tables))
+    worst = monthly.nsmallest(10, "payoff_scaled")
+    return StatsResults(tables, deciles, mz_fit_line(monthly, s), pd.DataFrame(), worst, s)
+
+
 def run_all_tests(panel: pd.DataFrame, monthly: pd.DataFrame, cfg: Config) -> StatsResults:
     """Run Tests 1–5 and return the combined results."""
     s = StatsSettings.from_config(cfg)

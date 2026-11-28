@@ -374,3 +374,61 @@ def test_real_case_studies(real_research, real_monthly, cfg) -> None:
         gone = win.loc[win["accrued_over_implied"] >= 1, "day"].iloc[0]
         assert case[(m, "premium_gone_by_day")] == gone
     assert case[("2020-03", "payoff_scaled_rank")] == 1
+
+
+# --------------------------------------------------------------------------- headline sample
+def test_headline_view_suffixes_everything(cfg) -> None:
+    """The headline config starts at the first flagged month and suffixes every output."""
+    from vrp.pipeline import headline_view
+
+    idx = pd.date_range("2002-01-01", periods=30, freq="MS")
+    m = pd.DataFrame({"post_2003": idx >= "2003-10-01"}, index=idx)
+    hcfg, sub = headline_view(cfg, m)
+    sfx = cfg["headline"]["suffix"]
+    assert sub.index[0] == pd.Timestamp("2003-10-01") and sub["post_2003"].all()
+    assert hcfg["dates"]["sample_start_month"] == "2003-10"
+    assert hcfg["plots"]["name_suffix"] == sfx
+    for sec in ("stats", "research"):
+        for k, v in hcfg[sec]["outputs"].items():
+            assert sfx in v and v != cfg[sec]["outputs"][k]
+    # The full-sample config is untouched.
+    assert cfg["dates"]["sample_start_month"] == "1990-01"
+    assert "name_suffix" not in cfg["plots"]
+    with pytest.raises(ValueError):
+        headline_view(cfg, m.assign(post_2003=False))
+
+
+def test_relabel_sample(cfg) -> None:
+    """Sample labels and 'since' phrases move to the headline years; numbers and NaN do not."""
+    from vrp.pipeline import headline_view, relabel_sample
+
+    idx = pd.date_range("2003-10-01", periods=3, freq="MS")
+    hcfg, _ = headline_view(cfg, pd.DataFrame({"post_2003": [True] * 3}, index=idx))
+    df = pd.DataFrame(
+        {
+            "sample": ["monthly 1990–2025", "VIX > 25", None],
+            "claim": ["risen since 1990", "x", "y"],
+            "estimate": [1.0, 2.0, 3.0],
+        }
+    )
+    out = relabel_sample(df, cfg, hcfg)
+    assert out["sample"].iloc[0] == "monthly 2003–2025"
+    assert out["sample"].iloc[1] == "VIX > 25"
+    assert pd.isna(out["sample"].iloc[2])
+    assert out["claim"].iloc[0] == "risen since 2003"
+    assert out["estimate"].tolist() == [1.0, 2.0, 3.0]
+
+
+def test_real_core_tests_headline(cfg, real_monthly) -> None:
+    """Tests 1–4 on the live-VIX months: no robustness rows; claims C1–C18 only."""
+    from vrp import stats
+    from vrp.stats_report import evaluate_claims
+
+    raw = copy.deepcopy(cfg.raw)
+    raw["stats"]["bootstrap"]["n_resamples"] = 200
+    sub = real_monthly[real_monthly["post_2003"].astype(bool)]
+    res = stats.run_core_tests(sub, type(cfg)(raw=raw, root=cfg.root))
+    assert not (res.tables["test"] == "5_robustness").any()
+    assert res.tables.loc[res.tables["test"] == "1_mean", "n"].max() == len(sub)
+    claims = evaluate_claims(res, [str(t) for t in cfg["headline"]["stats_tests"]])
+    assert list(claims["id"]) == [f"C{i}" for i in range(1, 19)]

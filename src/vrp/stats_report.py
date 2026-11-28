@@ -383,11 +383,18 @@ def _find(tables: pd.DataFrame, e: Evidence) -> pd.Series:
     return hit.iloc[0]
 
 
-def evaluate_claims(res: StatsResults) -> pd.DataFrame:
-    """Check every candidate v2 claim against the evidence; Holm-adjust across claims."""
+def evaluate_claims(res: StatsResults, tests: list[str] | None = None) -> pd.DataFrame:
+    """Check the candidate v2 claims against the evidence; Holm-adjust across claims.
+
+    ``tests`` keeps only the claims of those tests (IDs unchanged), e.g. ["1", "2", "3", "4"]
+    for a run without the robustness test; the Holm family is then the kept claims.
+    """
     s = res.settings
     specs = claim_specs(s.n_exclude_worst, s.robustness_window, s.worst_decile, s.best_decile)
     ids = [f"C{i}" for i in range(1, len(specs) + 1)]
+    if tests is not None:
+        keep = [i for i, c in enumerate(specs) if c.test in tests]
+        specs, ids = [specs[i] for i in keep], [ids[i] for i in keep]
     return evaluate_specs(specs, res.tables, ids, s.alpha, 1 / (s.n_boot + 1))
 
 
@@ -458,7 +465,12 @@ def evaluate_specs(
 
 
 # --------------------------------------------------------------------------- writers
-def write_claims(res: StatsResults, claims: pd.DataFrame, path: Path) -> Path:
+SAMPLE_TEXT = "432 months, January 1990 to December 2025"
+
+
+def write_claims(
+    res: StatsResults, claims: pd.DataFrame, path: Path, sample_text: str = SAMPLE_TEXT
+) -> Path:
     """Write ``pitch_claims.md``: what we can and cannot say, with the evidence."""
     s = res.settings
     floor = 1 / (s.n_boot + 1)
@@ -485,7 +497,7 @@ def write_claims(res: StatsResults, claims: pd.DataFrame, path: Path) -> Path:
         "resamples), so they allow for autocorrelation between months. "
         f"p-values shown as '≤ {floor:.1g}' are at the resampling floor.",
         "",
-        "Sample: 432 months, January 1990 to December 2025 (VIX at the close of the first "
+        f"Sample: {sample_text} (VIX at the close of the first "
         "trading day of each month vs S&P 500 realised variance over the next 21 trading "
         "days). The payoff is an idealised one-month variance swap, held to expiry, with no "
         "costs.",

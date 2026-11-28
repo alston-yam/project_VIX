@@ -140,6 +140,8 @@ that change future prices and check that past values do not move.
 | `outputs/reports/research_claims.md` / `.csv` | research: the eleven pre-registered claims (R-1 … R-11) and verdicts |
 | `outputs/figures/12…17` | research: vol dynamics, vol by year, premium by conditions at t, rolling premium, break-even, case studies |
 | `…_post2003` versions of the stats (tests 1–4) and research outputs and figures | the live-VIX era, Oct 2003 – Dec 2025 (267 months): the sample the pitch leads with (methodology §11) |
+| `outputs/figures/deck/` | slide versions of the charts the deck uses (no title or footnote, larger text) |
+| `deck/VIX_pitch_editable.pptx` | snapshot of the deck for hand-editing (e.g. in Google Slides); `make deck` never overwrites it, so edits made there are not regenerated |
 | `deck/VIX_pitch.pptx` | pitch deck built from the OAF template by `make deck`; every number read from the tables above |
 
 v1 sanity check (1990–2024, monthly sample): mean VIX **19.54** (benchmark ≈ 19.6), mean

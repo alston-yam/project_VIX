@@ -80,9 +80,35 @@ def save(fig: plt.Figure, name: str, cfg: Config) -> list[Path]:
             metadata={"Date": None} if ext == "svg" else None,
         )
         paths.append(p)
+    if name in cfg["plots"].get("deck", {}).get("figures", []):
+        paths.append(_save_deck_version(fig, name, cfg))
     plt.close(fig)
     log.info("plots: wrote %s", ", ".join(p.name for p in paths))
     return paths
+
+
+def _save_deck_version(fig: plt.Figure, name: str, cfg: Config) -> Path:
+    """Slide copy of a saved figure: no suptitle or footnotes, smaller canvas → larger text.
+
+    The slide carries the title and the data source, so both are removed here; panel titles,
+    legends and axis labels stay. PNG only, under ``outputs/figures/<deck.subdir>/``.
+    """
+    d = cfg["plots"]["deck"]
+    if fig._suptitle is not None:  # noqa: SLF001 (matplotlib has no public remover)
+        fig._suptitle.remove()  # noqa: SLF001
+        fig._suptitle = None  # noqa: SLF001
+    for t in list(fig.texts):  # footnotes are figure-level texts
+        t.remove()
+    if len(fig.axes) == 1:  # a single chart's own title repeats the slide title
+        fig.axes[0].set_title("")
+    w, h = fig.get_size_inches()
+    fig.set_size_inches(w * d["shrink"], h * d["shrink"])
+    fig.tight_layout()
+    out_dir = cfg.path("figures") / d["subdir"]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    p = out_dir / f"{name}.png"
+    fig.savefig(p, dpi=d["dpi"], bbox_inches="tight")
+    return p
 
 
 def span_label(cfg: Config) -> str:
@@ -396,9 +422,9 @@ def fig_test1_mean(tables: pd.DataFrame, cfg: Config) -> list[Path]:
     t = tables[tables["test"] == "1_mean"].dropna(subset=["ci_low"])
     n_months = int(t["n"].max())
     measures = [
-        ("payoff_scaled", "Scaled payoff (fraction of IV)"),
-        ("payoff_var", "Raw payoff (annualised variance)"),
-        ("vol_spread_pts", "Vol spread (VIX − realised vol, pts)"),
+        ("payoff_scaled", "Scaled payoff (share of IV)"),
+        ("payoff_var", "Raw payoff (ann. variance)"),
+        ("vol_spread_pts", "VIX − realised vol (pts)"),
     ]
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.8), sharey=True)
     for ax, (m, title) in zip(axes, measures, strict=True):
@@ -1114,8 +1140,8 @@ def fig_case_studies(res: object, cfg: Config) -> list[Path]:
             ax.axvspan(0.5, h + 0.5, color=COLORS["grid"], alpha=0.35, lw=0)
         label = pd.Period(case, "M").strftime("%B %Y")
         a0.set_title(
-            f"{label}: VIX {get('vix_at_t'):.1f} at t, realised vol "
-            f"{get('realised_vol_fwd'):.0f} over the next {h} days",
+            f"{label}: VIX {get('vix_at_t'):.0f} at t, realised vol "
+            f"{get('realised_vol_fwd'):.0f}",
             fontsize=11,
         )
         a2.set_xlabel("Trading days from t")

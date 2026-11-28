@@ -39,7 +39,7 @@ make all        # download (cached) → clean → features → sample → events
 | `make refresh` | data stage with fresh downloads (`--refresh`) |
 | `make figures` | figures from processed data |
 | `make stats` / `make research` | v2 tests / research section (figures 12–17); each also on the live-VIX era (`*_post2003`) |
-| `make deck` | pitch deck → `deck/VIX_pitch.pptx` (needs python-pptx) |
+| `make deck` | pitch deck → `deck/VIX_pitch.pptx` (needs python-pptx); `deck/VIX_pitch_editable.pptx` is a hand-edit snapshot it never touches |
 | `make test` | `pytest` (must pass before any commit) |
 | `make lint` / `make format` | black + ruff check / fix (line length 100) |
 | `make clean` | delete raw/interim data, logs and caches |

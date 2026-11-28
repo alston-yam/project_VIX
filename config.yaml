@@ -92,6 +92,26 @@ plots:
     covid_2020: "COVID"
     tariff_2025: "Tariffs"
   headroom: 1.3   # y-axis top = data max x headroom, leaving space for event labels
+  # Slide versions of the charts the deck uses (step 8): saved alongside the analysis figure,
+  # without its own title and footnote (the slide carries both) and drawn smaller so text is
+  # larger on the slide. Names include the headline suffix where the deck uses that version.
+  deck:
+    subdir: "deck"               # outputs/figures/deck/
+    shrink: 0.8                  # figure drawn at 80% size → text ≈ 25% larger on the slide
+    dpi: 220
+    figures:
+      - "02_vix_vs_realised_vol_post2003"
+      - "06_data_coverage"
+      - "07_test1_mean_ci_post2003"
+      - "09_test3_selloff_post2003"
+      - "10_test4_mincer_zarnowitz_post2003"
+      - "11_test5_robustness"
+      - "12_rv_dynamics_post2003"
+      - "13_rv_by_year_post2003"
+      - "14_conditional_premium_post2003"
+      - "15_rolling_premium_post2003"
+      - "16_breakeven_post2003"
+      - "17_case_studies_post2003"
   n_label_worst: 5
 
 # ---------------------------------------------------------------------------

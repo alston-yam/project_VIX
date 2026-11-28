@@ -392,5 +392,12 @@ numbers appear on one backup slide ("The Longer History") for Q&A, not in the st
     decile 1), so "the worst 10% of S&P months" is approximate in the live era.
 39. **Sample labels.** Result rows are matched to claims on their standard labels, then
     relabelled (`1990–2025` → `2003–2025`, `since 1990` → `since 2003`) before writing.
+41. **Slide versions of the charts (step 8).** For the figures listed under `plots.deck` in
+    `config.yaml`, `plots.save()` also writes a copy to `outputs/figures/deck/` without the
+    figure's own title and footnote and drawn at 80% size, so text is about 25% larger on the
+    slide. The deck uses these and puts the data source and sign convention in a caption under
+    each chart. The analysis figures are unchanged.
+42. **Speaker notes (step 9)** are drafted by `deck.speaker_notes()` from the result tables,
+    so they follow the data; each ends with a "Detail" line for Q&A.
 40. **Partial first year.** In the live-era year table, 2003's vol-of-vol uses Oct–Dec only;
     its annual vol uses the whole year. The slide says so.

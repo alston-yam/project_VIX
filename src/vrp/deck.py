@@ -314,15 +314,28 @@ def _title(slide, text: str, bar: str | None = None, bar_idx: int = 3) -> None:
         _style_run(r, 16, False, BLUE)
 
 
+SOURCE_NOTE = ""  # set by build_deck: the data source and sign convention under each chart
+CAPTION_H = 0.24  # inches reserved under a chart for that line
+
+
 def _picture(slide, path: Path, x: float, y: float, w: float, h: float, alt: str) -> tuple:
-    """Insert a PNG scaled to fit the box (aspect kept), centred horizontally, top-aligned."""
+    """Insert a PNG scaled to fit the box (aspect kept), centred horizontally, top-aligned.
+
+    The slide versions of the charts carry no footnote, so the source line goes underneath.
+    """
     iw, ih = Image.open(path).size
-    scale = min(w / iw, h / ih)
+    h_img = h - (CAPTION_H if SOURCE_NOTE else 0)
+    scale = min(w / iw, h_img / ih)
     pw, ph = iw * scale, ih * scale
     px = x + (w - pw) / 2
     pic = slide.shapes.add_picture(str(path), Inches(px), Inches(y), Inches(pw), Inches(ph))
     pic.name = path.stem
     pic._element.nvPicPr.cNvPr.set("descr", alt)
+    if SOURCE_NOTE:
+        tb = _textbox(slide, px, y + ph + 0.02, pw, CAPTION_H, "source")
+        r = tb.text_frame.paragraphs[0].add_run()
+        r.text = SOURCE_NOTE
+        _style_run(r, 8.5, False, MUTED)
     return px, y, pw, ph
 
 
@@ -911,6 +924,12 @@ def slide_r6(prs, cfg: Config, n: Numbers, fig: Path) -> None:
     )
 
 
+def _worst_month(n: Numbers) -> str:
+    """'2020-03': the worst scaled-payoff month (the break-even scenario)."""
+    c = n.breakeven
+    return str(c.loc[(c["measure"] == "payoff_scaled") & c["is_worst"], "worst_month"].iloc[0])
+
+
 def _worst_label(n: Numbers) -> str:
     """Month label of the worst scaled-payoff month (the break-even scenario)."""
     c = n.breakeven
@@ -1047,7 +1066,7 @@ def slide_verdict(prs, cfg: Config, n: Numbers) -> None:
     s.notes_slide.notes_text_frame.text = (
         "So, is the VIX too pessimistic? On average, yes. Since "
         f"{n.since} it has over-forecast risk in {often}, and even after paying for "
-        f"{_worst_label(n).replace(NBSP, ' ')} the premium comes out ahead: a crash that size "
+        f"{pd.Period(_worst_month(n), 'M'):%B %Y} the premium comes out ahead: a crash that size "
         f"would need to happen every {be['estimate']:.0f} years to wipe it out, and there's been "
         f"one in {years}.{proof} And when the losses come, they come all at once, with no "
         "warning sign beforehand.\n\n"
@@ -1232,12 +1251,160 @@ def slide_disclaimer(prs) -> None:
 
 
 # =========================================================================== build
+def _slide_by_title(prs, title: str):
+    """The first slide whose title placeholder reads ``title``."""
+    for sl in prs.slides:
+        t = sl.shapes.title
+        if t is not None and t.text_frame.text == title:
+            return sl
+    raise KeyError(f"no slide titled {title!r}")
+
+
+def speaker_notes(n: Numbers) -> dict[str, str]:
+    """Draft speaker notes (step 9) for slides 3–10, keyed by slide title.
+
+    Each note is what to say (about a minute), then a 'Detail' line for Q&A. Every number is
+    read from the result tables, so the notes follow the data if it changes.
+    """
+    c = n.case
+    m20, m25 = n.rs.case_studies[0], n.rs.case_studies[-1]
+    win = n.row("2_shape", "payoff_scaled", "win_rate", method="Wilson")["estimate"]
+    mean = n.row("1_mean", "payoff_scaled", "mean", method="Newey")
+    med = n.row("1_mean", "payoff_scaled", "median")["estimate"]
+    skew = n.row("2_shape", "payoff_scaled", "skewness")["estimate"]
+    share = n.row("3_crash", "payoff_var", "loss_share_in_decile_1")["estimate"]
+    sell = n.row("3_crash", "payoff_scaled", "mean_in_selloff")["estimate"]
+    ar = n.row("R_dynamics", "log_rv_cal", "ar1_rho")["estimate"]
+    hl = n.row("R_dynamics", "log_rv_cal", "half_life_months")["estimate"]
+    trv = n.row("R_dynamics", "log_rv_cal", "trend_slope_per_year")["p_value"]
+    gl = research.bucket_labels("gap", n.rs.gap_thresholds, " pts")
+    g_hi = n.row("R_conditional", "payoff_scaled", "mean", sample=gl[2])["estimate"]
+    g_lo = n.row("R_conditional", "payoff_scaled", "mean", sample=gl[0])["estimate"]
+    tr = n.row("R_time", "payoff_scaled", "trend_slope_per_year")
+    roll = n.rolling["mean"]
+    be = n.row("R_breakeven", "payoff_scaled", "breakeven_years_between")
+    c10 = n.rclaim("R-10")
+    jf = n.row("R_jensen", "rv_fwd21", "fair_vix_share_above_realised")["estimate"]
+    ja = n.row("R_jensen", "vol_spread_pts", "share_vix_above_realised")["estimate"]
+    jc = n.row("R_jensen", "rv_fwd21", "cond_convexity_share_of_spread")
+    worst = n.monthly.nsmallest(5, "payoff_scaled")
+    worst_txt = ", ".join(f"{pd.Timestamp(r.month):%B %Y}" for r in worst.itertuples())
+    top = ", ".join(str(y) for y in n.years.sort_values("rank_irregular").head(5).index)
+    first = f"{n.monthly.index[0]:%B %Y}"
+    w = round(6 * win)
+    return {
+        "What Does the VIX Measure?": (
+            "The VIX is the market's price for the next month of S&P 500 volatility, read from "
+            "option prices. Squared, it is the price of next month's variance. If you sell that "
+            "variance you collect the VIX and pay out whatever volatility actually happens, so "
+            "you win when markets are calmer than options implied. Throughout, positive means "
+            "the VIX over-forecast and the seller won.\n\n"
+            "One subtlety: the VIX prices variance, so even a perfectly fair VIX would sit above "
+            f"realised volatility in about {pct(jf, 0)} of months. It actually does in "
+            f"{pct(ja, 0)}. Convexity explains about {pct(jc['estimate'], 0)} of the average gap "
+            "and the rest is premium, which is why we test in variance, not volatility.\n\n"
+            f"Detail: convexity share 95% CI {ci_pct(jc['ci_low'], jc['ci_high'], 0)}; an "
+            "upper estimate (research_summary, section D)."
+        ),
+        "Data and Validation": (
+            "Our data come from public sources, Cboe via FRED for the VIX and Yahoo Finance for "
+            "the S&P 500, and they reproduce the published benchmarks without any adjustment. "
+            f"Our evidence starts in {first}: before then the VIX was back-calculated by Cboe "
+            f"after the fact, not something anyone could trade. That gives us {len(n.monthly)} "
+            "months. Each month we read the VIX at the close of its first trading day and compare "
+            "it with the variance of the next 21 trading days, so nothing from the future leaks "
+            "into the starting point.\n\n"
+            "Detail: the 1990–2003 back-history is on the backup slide if asked."
+        ),
+        "Does the VIX Over-Forecast Volatility?": (
+            f"First question: does the VIX over-forecast? Since {n.since} the variance seller "
+            f"wins in {pct(win, 0)} of months, about {SMALL_NUMBERS[w]} in six. On average the "
+            f"seller keeps {pct(mean['estimate'], 0)} of the implied variance, and the "
+            f"confidence interval runs from {pct(mean['ci_low'], 0)} to "
+            f"{pct(mean['ci_high'], 0)}, so it is clearly above zero, whichever way we compute "
+            f"the standard errors. The typical month is better still, at {pct(med, 0)}. The gap "
+            "between the typical month and the average is the first hint of the next slide: a "
+            "few very bad months drag the average down.\n\n"
+            "Detail: Newey–West and 6-month block-bootstrap CIs allow for autocorrelation."
+        ),
+        "How Bad Are the Losing Months?": (
+            "So why isn't selling volatility free money? Because the losses are rare but violent. "
+            f"The payoff is heavily lopsided, with a skew of {num(skew)}. The five worst months "
+            f"are {worst_txt}, and they all come when stocks fall: the worst tenth of S&P months "
+            f"carries {pct(share, 0)} of all the seller's losses. In a sell-off month the seller "
+            f"loses about {pct(-sell, 0)} of the implied variance. In other words, selling the "
+            "VIX is selling crash insurance.\n\n"
+            "Detail: sorting by the S&P move describes when losses happen; it is not a forecast "
+            "made at the start of the month."
+        ),
+        "Case Study: March 2020 vs April 2025": (
+            f"Two examples. In {pd.Period(m20, 'M'):%B %Y} the VIX started at "
+            f"{c(m20, 'vix_at_t'):.0f}, already higher than "
+            f"{pct(c(m20, 'vix_at_t_percentile'), 0)} of months, so the market was worried. "
+            "But volatility came in at "
+            f"{c(m20, 'realised_vol_fwd'):.0f}. The seller's whole premium was gone by day "
+            f"{c(m20, 'premium_gone_by_day'):.0f}, the loss equalled "
+            f"{c(m20, 'months_of_premium_lost'):.0f} months of average premium, and it took "
+            f"{c(m20, 'months_to_recover'):.0f} months to win back.\n\n"
+            f"In {pd.Period(m25, 'M'):%B %Y} the VIX started at "
+            f"{c(m25, 'vix_at_t'):.0f}; the premium was gone by day "
+            f"{c(m25, 'premium_gone_by_day'):.0f}. The S&P ended the month almost flat, but the "
+            "seller still lost, because variance builds up every day: the path matters, not "
+            "where the market ends.\n\n"
+            "Detail: these are outcomes after the start of the month, not signals."
+        ),
+        "How Does Realised Volatility Behave?": (
+            "To understand the risk we looked at how volatility itself behaves. It clusters: a "
+            f"high-volatility month tends to be followed by another (AR(1) of {num(ar, 2)}). But "
+            f"shocks fade quickly, with a half-life of about {num(hl)} months, and there is no "
+            f"long-run trend since {n.since}. Volatility comes in bursts, which is exactly what "
+            f"makes the premium lumpy. The most irregular years were {top}.\n\n"
+            f"Detail: unit root rejected (ADF); trend p = {trv:.2f}."
+        ),
+        "When Is the Premium Largest?": (
+            "Can we tell in advance which months are dangerous, using only what is known at the "
+            "start of the month? We split months by the VIX level and by how far the VIX sits "
+            "above recent realised volatility. The numbers point the expected way: the premium "
+            f"is larger when the VIX is well above recent volatility, {pct(g_hi, 0)} against "
+            f"{pct(g_lo, 0)}. But none of these differences is statistically significant. The "
+            "seller wins most months in every group; what differs is the size of the losses. "
+            "That is the question the fair-price model takes on next.\n\n"
+            "Detail: thresholds fixed in advance (VIX 15 / 25; gap 0 / 5 points); in-sample "
+            "description, not a trading rule."
+        ),
+        "Is the Premium Shrinking?": (
+            f"Is the premium disappearing? No. Since {n.since} there is no trend, "
+            f"{pct(tr['estimate'], 2)} a year with a p-value of {tr['p_value']:.2f}. It dips hard "
+            f"after crashes, down to {pct(roll.min(), 0)} after COVID, and recovers; it is "
+            f"{pct(roll.iloc[-1], 0)} now.\n\n"
+            "Then the key question: is the VIX too pessimistic? For the seller to break even, a "
+            f"March-2020-sized loss would have to happen every {num(be['estimate'])} years. We "
+            f"have seen one in {be['null_value']:.0f} years. That is a wide margin, but with a "
+            "single crash in the data we can't call it proven."
+            + (" " if not c10["supported"] else " It passes our test. ")
+            + "In raw variance terms the margin is thinner.\n\n"
+            f"Detail: break-even CI {num(be['ci_low'])}–{num(be['ci_high'])} years; R-10 "
+            f"Holm-adjusted p = {c10['p_holm']:.2f}."
+        ),
+    }
+
+
+def add_speaker_notes(prs, n: Numbers) -> None:
+    """Write the drafted speaker notes onto their slides (replacing any shorter note)."""
+    for title, text in speaker_notes(n).items():
+        _slide_by_title(prs, title).notes_slide.notes_text_frame.text = text
+
+
 def build_deck(cfg: Config) -> Path:
     """Build the pitch deck from the OAF template; returns the output path."""
     d = cfg["deck"]
     tpl = cfg.root / d["template"]
     out = cfg.root / d["output"]
-    fig = cfg.path("figures")
+    global SOURCE_NOTE
+    fig = cfg.path("figures") / cfg["plots"]["deck"]["subdir"]  # slide versions (step 8)
+    SOURCE_NOTE = (
+        cfg["plots"]["source_note"] + ". Sign: implied − realised (positive = seller gains)."
+    )
     n = load_numbers(cfg)
     prs = Presentation(str(tpl))
     _clear_slides(prs)
@@ -1280,6 +1447,7 @@ def build_deck(cfg: Config) -> Path:
     slide_appendix_years(prs, cfg, n, fig)
     slide_backup_history(prs, cfg, n)
     slide_disclaimer(prs)
+    add_speaker_notes(prs, n)
 
     out.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out))

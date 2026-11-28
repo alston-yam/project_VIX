@@ -65,6 +65,14 @@ def test_build_deck(cfg, tmp_path) -> None:
     )
     assert "1990s" not in story and "back-history" not in story
     assert "Backup: The Longer History" in text
+    # Step 9: every story slide (3–10) has drafted speaker notes with a Detail line for Q&A.
+    for sl in list(prs.slides)[2:10]:
+        note = sl.notes_slide.notes_text_frame.text
+        assert len(note) > 250 and "Detail:" in note, sl.shapes.title.text_frame.text
+    # Step 8: every chart on the slides is a slide version and has a source line under it.
+    pics = [sh for sl in prs.slides for sh in sl.shapes if sh.shape_type == 13]
+    deck_figs = set(cfg["plots"]["deck"]["figures"])
+    assert pics and all(p.name in deck_figs for p in pics)
 
 
 def test_out_of_six() -> None:
